@@ -14,7 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      inventory: {
+        Row: {
+          category: string | null
+          contractor_price: number
+          created_at: string
+          item_code: string
+          item_name: string
+          retail_price: number
+          wholesale_price: number
+        }
+        Insert: {
+          category?: string | null
+          contractor_price?: number
+          created_at?: string
+          item_code: string
+          item_name: string
+          retail_price?: number
+          wholesale_price?: number
+        }
+        Update: {
+          category?: string | null
+          contractor_price?: number
+          created_at?: string
+          item_code?: string
+          item_name?: string
+          retail_price?: number
+          wholesale_price?: number
+        }
+        Relationships: []
+      }
+      synonyms: {
+        Row: {
+          created_at: string
+          customer_term: string
+          id: string
+          item_code: string
+        }
+        Insert: {
+          created_at?: string
+          customer_term: string
+          id?: string
+          item_code: string
+        }
+        Update: {
+          created_at?: string
+          customer_term?: string
+          id?: string
+          item_code?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
