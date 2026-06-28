@@ -61,11 +61,8 @@ ${synList || "(none)"}`;
 
     const result = await generateText({
       model: gateway("google/gemini-3-flash-preview"),
+      system: systemPrompt,
       messages: [
-        {
-          role: "system",
-          content: systemPrompt,
-        },
         {
           role: "user",
           content: [
