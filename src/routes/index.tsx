@@ -216,8 +216,8 @@ function Workspace() {
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
-            const f = e.dataTransfer.files?.[0];
-            if (f) onFile(f);
+            const files = Array.from(e.dataTransfer.files ?? []);
+            if (files.length) onFiles(files);
           }}
           onClick={() => fileRef.current?.click()}
           className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-colors"
@@ -226,28 +226,47 @@ function Workspace() {
             ref={fileRef}
             type="file"
             accept="image/*"
+            multiple
             className="hidden"
             onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onFile(f);
+              const files = Array.from(e.target.files ?? []);
+              if (files.length) onFiles(files);
+              e.target.value = "";
             }}
           />
           {loading ? (
             <div className="flex flex-col items-center gap-3 text-primary">
               <Loader2 className="h-8 w-8 animate-spin" />
-              <p className="text-sm font-medium">Reading image and matching items…</p>
+              <p className="text-sm font-medium">
+                {progress
+                  ? `Processing ${progress.done} / ${progress.total} image${progress.total === 1 ? "" : "s"}…`
+                  : "Reading image and matching items…"}
+              </p>
             </div>
-          ) : preview ? (
+          ) : previews.length > 0 ? (
             <div className="flex flex-col items-center gap-3">
-              <img src={preview} alt="preview" className="max-h-48 rounded border" />
-              <p className="text-sm text-muted-foreground">Click or drop to upload a different image</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {previews.map((p, i) => (
+                  <div key={i} className="relative">
+                    <img
+                      src={p.url}
+                      alt={p.name}
+                      title={p.name}
+                      className="h-24 w-24 object-cover rounded border"
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {previews.length} image{previews.length === 1 ? "" : "s"} uploaded · click or drop to add more (up to {MAX_IMAGES} per batch)
+              </p>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3 text-muted-foreground">
               <Upload className="h-10 w-10" />
               <div>
-                <p className="font-medium text-foreground">Drop a quotation image here</p>
-                <p className="text-sm">or click to browse · JPEG, PNG</p>
+                <p className="font-medium text-foreground">Drop quotation images here</p>
+                <p className="text-sm">or click to browse · JPEG, PNG · up to {MAX_IMAGES} at a time</p>
               </div>
             </div>
           )}
