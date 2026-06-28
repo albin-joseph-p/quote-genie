@@ -53,9 +53,10 @@ function Workspace() {
   const process = useServerFn(processQuotation);
   const fileRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [mode, setMode] = useState<PriceMode>("retail_price");
   const [rows, setRows] = useState<Row[]>([]);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [previews, setPreviews] = useState<{ url: string; name: string }[]>([]);
 
   const inventoryQ = useQuery({
     queryKey: ["inventory"],
@@ -74,35 +75,75 @@ function Workspace() {
     [inventory],
   );
 
-  const onFile = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file (JPEG/PNG).");
-      return;
+  const MAX_IMAGES = 10;
+
+  const fileToBase64 = async (file: File) => {
+    const buf = await file.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  };
+
+  const onFiles = async (fileList: File[]) => {
+    const images = fileList.filter((f) => f.type.startsWith("image/"));
+    const skipped = fileList.length - images.length;
+    if (skipped > 0) toast.error(`${skipped} non-image file${skipped === 1 ? "" : "s"} skipped.`);
+    if (images.length === 0) return;
+
+    let batch = images;
+    if (batch.length > MAX_IMAGES) {
+      toast.error(`Only the first ${MAX_IMAGES} images will be processed.`);
+      batch = batch.slice(0, MAX_IMAGES);
     }
-    setPreview(URL.createObjectURL(file));
+
+    const newPreviews = batch.map((f) => ({ url: URL.createObjectURL(f), name: f.name }));
+    setPreviews((p) => [...p, ...newPreviews]);
+
     setLoading(true);
-    try {
-      const buf = await file.arrayBuffer();
-      const bytes = new Uint8Array(buf);
-      let binary = "";
-      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-      const base64 = btoa(binary);
-      const res = await process({ data: { imageBase64: base64, mimeType: file.type } });
-      const newRows: Row[] = res.items.map((it, idx) => ({
-        id: `${Date.now()}-${idx}`,
-        extractedText: it.extractedText,
-        itemCode: it.itemCode,
-        qty: it.customerQty ?? 1,
-        manualPrice: null,
-      }));
-      setRows(newRows);
-      toast.success(`Extracted ${newRows.length} line item${newRows.length === 1 ? "" : "s"}.`);
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to process image. " + (e as Error).message);
-    } finally {
-      setLoading(false);
+    setProgress({ done: 0, total: batch.length });
+    const batchStamp = Date.now();
+    let succeeded = 0;
+    let extracted = 0;
+
+    const results = await Promise.allSettled(
+      batch.map(async (file, idx) => {
+        const base64 = await fileToBase64(file);
+        const res = await process({ data: { imageBase64: base64, mimeType: file.type } });
+        return { idx, file, items: res.items };
+      }),
+    );
+
+    for (const r of results) {
+      if (r.status === "fulfilled") {
+        succeeded += 1;
+        const { idx, items } = r.value;
+        const newRows: Row[] = items.map((it, rIdx) => ({
+          id: `${batchStamp}-${idx}-${rIdx}`,
+          extractedText: it.extractedText,
+          itemCode: it.itemCode,
+          qty: it.customerQty ?? 1,
+          manualPrice: null,
+        }));
+        extracted += newRows.length;
+        setRows((rs) => [...rs, ...newRows]);
+        setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+      } else {
+        console.error(r.reason);
+        toast.error("One image failed: " + (r.reason as Error).message);
+        setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+      }
     }
+
+    setLoading(false);
+    setProgress(null);
+    toast.success(`Extracted ${extracted} item${extracted === 1 ? "" : "s"} from ${succeeded} of ${batch.length} image${batch.length === 1 ? "" : "s"}.`);
+  };
+
+  const clearAll = () => {
+    previews.forEach((p) => URL.revokeObjectURL(p.url));
+    setPreviews([]);
+    setRows([]);
   };
 
   const defaultPriceFor = (code: string | null) =>
