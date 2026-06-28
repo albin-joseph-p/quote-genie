@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Upload, Loader2, FileDown, Copy, CheckCircle2, Pencil, Trash2 } from "lucide-react";
+import { Upload, Loader2, FileDown, Copy, CheckCircle2, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -53,9 +53,10 @@ function Workspace() {
   const process = useServerFn(processQuotation);
   const fileRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [mode, setMode] = useState<PriceMode>("retail_price");
   const [rows, setRows] = useState<Row[]>([]);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [previews, setPreviews] = useState<{ url: string; name: string }[]>([]);
 
   const inventoryQ = useQuery({
     queryKey: ["inventory"],
@@ -74,35 +75,75 @@ function Workspace() {
     [inventory],
   );
 
-  const onFile = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file (JPEG/PNG).");
-      return;
+  const MAX_IMAGES = 10;
+
+  const fileToBase64 = async (file: File) => {
+    const buf = await file.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  };
+
+  const onFiles = async (fileList: File[]) => {
+    const images = fileList.filter((f) => f.type.startsWith("image/"));
+    const skipped = fileList.length - images.length;
+    if (skipped > 0) toast.error(`${skipped} non-image file${skipped === 1 ? "" : "s"} skipped.`);
+    if (images.length === 0) return;
+
+    let batch = images;
+    if (batch.length > MAX_IMAGES) {
+      toast.error(`Only the first ${MAX_IMAGES} images will be processed.`);
+      batch = batch.slice(0, MAX_IMAGES);
     }
-    setPreview(URL.createObjectURL(file));
+
+    const newPreviews = batch.map((f) => ({ url: URL.createObjectURL(f), name: f.name }));
+    setPreviews((p) => [...p, ...newPreviews]);
+
     setLoading(true);
-    try {
-      const buf = await file.arrayBuffer();
-      const bytes = new Uint8Array(buf);
-      let binary = "";
-      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-      const base64 = btoa(binary);
-      const res = await process({ data: { imageBase64: base64, mimeType: file.type } });
-      const newRows: Row[] = res.items.map((it, idx) => ({
-        id: `${Date.now()}-${idx}`,
-        extractedText: it.extractedText,
-        itemCode: it.itemCode,
-        qty: it.customerQty ?? 1,
-        manualPrice: null,
-      }));
-      setRows(newRows);
-      toast.success(`Extracted ${newRows.length} line item${newRows.length === 1 ? "" : "s"}.`);
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to process image. " + (e as Error).message);
-    } finally {
-      setLoading(false);
+    setProgress({ done: 0, total: batch.length });
+    const batchStamp = Date.now();
+    let succeeded = 0;
+    let extracted = 0;
+
+    const results = await Promise.allSettled(
+      batch.map(async (file, idx) => {
+        const base64 = await fileToBase64(file);
+        const res = await process({ data: { imageBase64: base64, mimeType: file.type } });
+        return { idx, file, items: res.items };
+      }),
+    );
+
+    for (const r of results) {
+      if (r.status === "fulfilled") {
+        succeeded += 1;
+        const { idx, items } = r.value;
+        const newRows: Row[] = items.map((it, rIdx) => ({
+          id: `${batchStamp}-${idx}-${rIdx}`,
+          extractedText: it.extractedText,
+          itemCode: it.itemCode,
+          qty: it.customerQty ?? 1,
+          manualPrice: null,
+        }));
+        extracted += newRows.length;
+        setRows((rs) => [...rs, ...newRows]);
+        setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+      } else {
+        console.error(r.reason);
+        toast.error("One image failed: " + (r.reason as Error).message);
+        setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+      }
     }
+
+    setLoading(false);
+    setProgress(null);
+    toast.success(`Extracted ${extracted} item${extracted === 1 ? "" : "s"} from ${succeeded} of ${batch.length} image${batch.length === 1 ? "" : "s"}.`);
+  };
+
+  const clearAll = () => {
+    previews.forEach((p) => URL.revokeObjectURL(p.url));
+    setPreviews([]);
+    setRows([]);
   };
 
   const defaultPriceFor = (code: string | null) =>
@@ -175,8 +216,8 @@ function Workspace() {
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
-            const f = e.dataTransfer.files?.[0];
-            if (f) onFile(f);
+            const files = Array.from(e.dataTransfer.files ?? []);
+            if (files.length) onFiles(files);
           }}
           onClick={() => fileRef.current?.click()}
           className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-colors"
@@ -185,28 +226,47 @@ function Workspace() {
             ref={fileRef}
             type="file"
             accept="image/*"
+            multiple
             className="hidden"
             onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onFile(f);
+              const files = Array.from(e.target.files ?? []);
+              if (files.length) onFiles(files);
+              e.target.value = "";
             }}
           />
           {loading ? (
             <div className="flex flex-col items-center gap-3 text-primary">
               <Loader2 className="h-8 w-8 animate-spin" />
-              <p className="text-sm font-medium">Reading image and matching items…</p>
+              <p className="text-sm font-medium">
+                {progress
+                  ? `Processing ${progress.done} / ${progress.total} image${progress.total === 1 ? "" : "s"}…`
+                  : "Reading image and matching items…"}
+              </p>
             </div>
-          ) : preview ? (
+          ) : previews.length > 0 ? (
             <div className="flex flex-col items-center gap-3">
-              <img src={preview} alt="preview" className="max-h-48 rounded border" />
-              <p className="text-sm text-muted-foreground">Click or drop to upload a different image</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {previews.map((p, i) => (
+                  <div key={i} className="relative">
+                    <img
+                      src={p.url}
+                      alt={p.name}
+                      title={p.name}
+                      className="h-24 w-24 object-cover rounded border"
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {previews.length} image{previews.length === 1 ? "" : "s"} uploaded · click or drop to add more (up to {MAX_IMAGES} per batch)
+              </p>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3 text-muted-foreground">
               <Upload className="h-10 w-10" />
               <div>
-                <p className="font-medium text-foreground">Drop a quotation image here</p>
-                <p className="text-sm">or click to browse · JPEG, PNG</p>
+                <p className="font-medium text-foreground">Drop quotation images here</p>
+                <p className="text-sm">or click to browse · JPEG, PNG · up to {MAX_IMAGES} at a time</p>
               </div>
             </div>
           )}
@@ -241,6 +301,9 @@ function Workspace() {
               ))}
             </div>
             <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={clearAll}>
+                <X className="h-4 w-4 mr-2" /> Clear all
+              </Button>
               <Button variant="outline" size="sm" onClick={handleCopy}>
                 <Copy className="h-4 w-4 mr-2" /> Copy
               </Button>
