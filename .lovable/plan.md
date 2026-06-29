@@ -1,32 +1,26 @@
-## Multi-image quotation upload
+## Master Inventory: Search + Edit with Confirmation
 
-Enable uploading multiple images at once (or one after another). Each image is sent to the AI in its own parallel call, and extracted line items are appended to the existing quotation table.
+Enhance `src/routes/master.tsx` with search and editable rows.
 
-### Changes
+### 1. Search bar
+- Add an `Input` above the inventory table with a `Search` icon.
+- Filter `invQ.data` client-side by case-insensitive match on `item_code` OR `item_name` (also `category`).
+- Show "X of Y items" counter and a clear button when search is active.
 
-**`src/routes/index.tsx`**
-- File input: add `multiple` attribute; drop zone accepts multiple files.
-- Replace `onFile(file)` with `onFiles(files: File[])`:
-  - Cap at 10 images per upload; warn via toast if more are dropped.
-  - Filter non-images; show toast for any skipped.
-  - Show all selected images as a thumbnail strip (small previews with filename) instead of single preview.
-  - Convert each file to base64 in parallel.
-  - Fire one `processQuotation` call per image with `Promise.allSettled` so a single failure doesn't kill the batch.
-  - For each successful result, append rows to existing `rows` state (sequential append behavior).
-  - Toast summary: "Extracted N items from X of Y images" + per-image failure toasts.
-- Loading indicator becomes a counter: "Processing 2 / 5 images…" using a small `processedCount` state.
-- Keep existing manual override, tier toggle, PDF/clipboard export untouched — they already iterate over `rows`.
-- Add a "Clear all" button next to Copy/Export to reset rows + previews (useful now that uploads accumulate).
+### 2. Inline edit per row
+- Add an "Edit" (pencil) action column on the right.
+- Clicking Edit switches that row into edit mode: `item_name`, `category`, `retail_price`, `contractor_price`, `wholesale_price` become `Input` fields (item_code stays read-only — it's the primary key).
+- Show Save (check) and Cancel (X) icons in the action cell while editing.
 
-**`src/lib/quote.functions.ts`**
-- No structural change required (already accepts one image). Calls are parallelized client-side.
+### 3. Confirmation dialog
+- Clicking Save opens an `AlertDialog` showing a side-by-side diff of changed fields only (Old → New).
+- "Confirm" runs an update mutation: `supabase.from("inventory").update({...}).eq("item_code", code)`, then invalidates `["inventory"]` and `["inventory-min"]` queries and toasts success.
+- "Cancel" closes the dialog and keeps the row in edit mode so the user can adjust.
 
-### Out of scope
-- No backend/schema changes.
-- No change to synonyms or master inventory pages.
-- No merging/de-duplication of identical line items across images (kept as separate rows so the user can review).
+### 4. Validation
+- Prices must be numeric and ≥ 0; `item_name` required. Block Save with an inline toast if invalid.
 
 ### Technical notes
-- Parallel calls use `Promise.allSettled` so partial failures are visible without aborting others.
-- Each image's rows get unique ids via `${Date.now()}-${imgIdx}-${rowIdx}`.
-- Thumbnail strip uses `URL.createObjectURL` per file; revoked on clear.
+- Local state: `search: string`, `editingCode: string | null`, `draft: Partial<Inv>`, `pendingConfirm: boolean`.
+- Reuse existing `AlertDialog` from `@/components/ui/alert-dialog` and `Input` from `@/components/ui/input`.
+- No schema changes, no backend changes.
