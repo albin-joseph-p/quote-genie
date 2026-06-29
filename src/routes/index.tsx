@@ -249,14 +249,22 @@ function Workspace() {
             <div className="flex flex-col items-center gap-3">
               <div className="flex flex-wrap justify-center gap-2">
                 {previews.map((p, i) => (
-                  <div key={i} className="relative">
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setZoomed(p);
+                    }}
+                    className="relative group"
+                    title={`Click to zoom · ${p.name}`}
+                  >
                     <img
                       src={p.url}
                       alt={p.name}
-                      title={p.name}
-                      className="h-24 w-24 object-cover rounded border"
+                      className="h-24 w-24 object-cover rounded border group-hover:ring-2 group-hover:ring-primary transition"
                     />
-                  </div>
+                  </button>
                 ))}
               </div>
               <p className="text-sm text-muted-foreground">
