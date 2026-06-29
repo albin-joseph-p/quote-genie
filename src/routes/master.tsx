@@ -102,19 +102,26 @@ function MasterPage() {
 
       if (!normalized.length) throw new Error("No valid rows");
 
-      // overwrite: delete all then insert in batches
+      const seen = new Set<string>();
+      const deduped = normalized.filter((r) => {
+        if (seen.has(r.item_code)) return false;
+        seen.add(r.item_code);
+        return true;
+      });
+
+      // overwrite: delete all then upsert in batches
       const del = await supabase.from("inventory").delete().neq("item_code", "__none__");
       if (del.error) throw del.error;
 
       const BATCH = 500;
-      for (let i = 0; i < normalized.length; i += BATCH) {
-        const chunk = normalized.slice(i, i + BATCH);
-        const { error } = await supabase.from("inventory").insert(chunk);
+      for (let i = 0; i < deduped.length; i += BATCH) {
+        const chunk = deduped.slice(i, i + BATCH);
+        const { error } = await supabase.from("inventory").upsert(chunk, { onConflict: "item_code" });
         if (error) throw error;
       }
       qc.invalidateQueries({ queryKey: ["inventory"] });
       qc.invalidateQueries({ queryKey: ["inventory-min"] });
-      toast.success(`Imported ${normalized.length} items`);
+      toast.success(`Imported ${deduped.length} items${deduped.length !== normalized.length ? ` (${normalized.length - deduped.length} duplicates skipped)` : ""}`);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
