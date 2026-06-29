@@ -456,6 +456,22 @@ function Workspace() {
           </div>
         </Card>
       )}
+
+      <Dialog open={!!zoomed} onOpenChange={(o) => !o && setZoomed(null)}>
+        <DialogContent className="max-w-[95vw] w-fit p-2 sm:p-3">
+          <DialogTitle className="sr-only">{zoomed?.name ?? "Image preview"}</DialogTitle>
+          {zoomed && (
+            <div className="overflow-auto max-h-[85vh]">
+              <img
+                src={zoomed.url}
+                alt={zoomed.name}
+                className="max-w-none h-auto"
+                style={{ minWidth: "min(95vw, 1200px)" }}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
