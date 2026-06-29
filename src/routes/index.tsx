@@ -58,6 +58,7 @@ function Workspace() {
   const [mode, setMode] = useState<PriceMode>("retail_price");
   const [rows, setRows] = useState<Row[]>([]);
   const [previews, setPreviews] = useState<{ url: string; name: string }[]>([]);
+  const [zoomed, setZoomed] = useState<{ url: string; name: string } | null>(null);
 
   const inventoryQ = useQuery({
     queryKey: ["inventory"],
