@@ -23,7 +23,7 @@ export const Route = createFileRoute("/master")({
   head: () => ({
     meta: [
       { title: "Master Inventory — QuickQuote" },
-      { name: "description", content: "Upload your master inventory CSV/XLSX with item codes and tiered prices." },
+      { name: "description", content: "Upload your master inventory CSV/XLSX." },
     ],
   }),
   component: MasterPage,
@@ -33,20 +33,12 @@ type Inv = {
   item_code: string;
   item_name: string;
   category: string | null;
-  retail_price: number;
-  contractor_price: number;
-  wholesale_price: number;
+  brand: string;
 };
 
-type Draft = {
-  item_name: string;
-  category: string;
-  retail_price: string;
-  contractor_price: string;
-  wholesale_price: string;
-};
+type Draft = { item_name: string };
 
-const REQUIRED = ["item_code", "item_name", "category", "retail_price", "contractor_price", "wholesale_price"];
+const REQUIRED = ["item_code", "item_name"];
 
 function MasterPage() {
   const qc = useQueryClient();
@@ -62,7 +54,7 @@ function MasterPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inventory")
-        .select("*")
+        .select("item_code,item_name,category,brand")
         .order("item_name");
       if (error) throw error;
       return (data ?? []) as Inv[];
@@ -81,7 +73,7 @@ function MasterPage() {
   });
 
   const updateRow = useMutation({
-    mutationFn: async (payload: { item_code: string; patch: Partial<Inv> }) => {
+    mutationFn: async (payload: { item_code: string; patch: { item_name: string } }) => {
       const { error } = await supabase
         .from("inventory")
         .update(payload.patch)
@@ -90,7 +82,6 @@ function MasterPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inventory"] });
-      qc.invalidateQueries({ queryKey: ["inventory-min"] });
       toast.success("Item updated");
       setEditingCode(null);
       setDraft(null);
@@ -136,9 +127,7 @@ function MasterPage() {
           item_code: String(r.item_code ?? "").trim(),
           item_name: String(r.item_name ?? "").trim(),
           category: String(r.category ?? "").trim() || null,
-          retail_price: Number(r.retail_price) || 0,
-          contractor_price: Number(r.contractor_price) || 0,
-          wholesale_price: Number(r.wholesale_price) || 0,
+          brand: String(r.brand ?? "").trim(),
         }))
         .filter((r) => r.item_code && r.item_name);
 
@@ -160,8 +149,15 @@ function MasterPage() {
         const { error } = await supabase.from("inventory").upsert(chunk, { onConflict: "item_code" });
         if (error) throw error;
       }
+
+      // Auto-create any new categories found in the upload
+      const cats = Array.from(new Set(deduped.map((r) => r.category).filter((c): c is string => !!c)));
+      if (cats.length) {
+        await supabase.from("categories").upsert(cats.map((name) => ({ name })), { onConflict: "name" });
+      }
+
       qc.invalidateQueries({ queryKey: ["inventory"] });
-      qc.invalidateQueries({ queryKey: ["inventory-min"] });
+      qc.invalidateQueries({ queryKey: ["categories"] });
       toast.success(`Imported ${deduped.length} items${deduped.length !== normalized.length ? ` (${normalized.length - deduped.length} duplicates skipped)` : ""}`);
     } catch (e) {
       toast.error((e as Error).message);
@@ -173,9 +169,10 @@ function MasterPage() {
 
   const downloadTemplate = () => {
     const csv =
-      "item_code,item_name,category,retail_price,contractor_price,wholesale_price\n" +
-      "ELEC-FIN-15,Finolex 1.5 sqmm Wire (90m),Electrical,2400,2150,1980\n" +
-      "SAN-JAQ-BSN,Jaquar Basin Mixer,Sanitary,4500,3900,3500\n";
+      "item_code,item_name,category,brand\n" +
+      "ELEC-FIN-15,1.5 sqmm Wire (90m),Wires,Finolex\n" +
+      "ELEC-POL-15,1.5 sqmm Wire (90m),Wires,Polycab\n" +
+      "SAN-JAQ-BSN,Basin Mixer,Plumbing,Jaquar\n";
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -187,13 +184,7 @@ function MasterPage() {
 
   const startEdit = (r: Inv) => {
     setEditingCode(r.item_code);
-    setDraft({
-      item_name: r.item_name,
-      category: r.category ?? "",
-      retail_price: String(r.retail_price),
-      contractor_price: String(r.contractor_price),
-      wholesale_price: String(r.wholesale_price),
-    });
+    setDraft({ item_name: r.item_name });
   };
 
   const cancelEdit = () => {
@@ -207,13 +198,6 @@ function MasterPage() {
       toast.error("Item name is required");
       return;
     }
-    for (const k of ["retail_price", "contractor_price", "wholesale_price"] as const) {
-      const n = Number(draft[k]);
-      if (!Number.isFinite(n) || n < 0) {
-        toast.error(`${k.replace("_", " ")} must be a number ≥ 0`);
-        return;
-      }
-    }
     setConfirmOpen(true);
   };
 
@@ -224,20 +208,9 @@ function MasterPage() {
 
   const diff = useMemo(() => {
     if (!editingOriginal || !draft) return [] as { field: string; old: string; next: string }[];
-    const next = {
-      item_name: draft.item_name.trim(),
-      category: draft.category.trim(),
-      retail_price: Number(draft.retail_price),
-      contractor_price: Number(draft.contractor_price),
-      wholesale_price: Number(draft.wholesale_price),
-    };
-    const out: { field: string; old: string; next: string }[] = [];
-    if (next.item_name !== editingOriginal.item_name) out.push({ field: "Name", old: editingOriginal.item_name, next: next.item_name });
-    if (next.category !== (editingOriginal.category ?? "")) out.push({ field: "Category", old: editingOriginal.category ?? "—", next: next.category || "—" });
-    if (next.retail_price !== Number(editingOriginal.retail_price)) out.push({ field: "Retail", old: `₹${Number(editingOriginal.retail_price).toFixed(2)}`, next: `₹${next.retail_price.toFixed(2)}` });
-    if (next.contractor_price !== Number(editingOriginal.contractor_price)) out.push({ field: "Contractor", old: `₹${Number(editingOriginal.contractor_price).toFixed(2)}`, next: `₹${next.contractor_price.toFixed(2)}` });
-    if (next.wholesale_price !== Number(editingOriginal.wholesale_price)) out.push({ field: "Wholesale", old: `₹${Number(editingOriginal.wholesale_price).toFixed(2)}`, next: `₹${next.wholesale_price.toFixed(2)}` });
-    return out;
+    const next = draft.item_name.trim();
+    if (next === editingOriginal.item_name) return [];
+    return [{ field: "Name", old: editingOriginal.item_name, next }];
   }, [editingOriginal, draft]);
 
   const confirmSave = () => {
@@ -251,13 +224,7 @@ function MasterPage() {
     }
     updateRow.mutate({
       item_code: editingOriginal.item_code,
-      patch: {
-        item_name: draft.item_name.trim(),
-        category: draft.category.trim() || null,
-        retail_price: Number(draft.retail_price),
-        contractor_price: Number(draft.contractor_price),
-        wholesale_price: Number(draft.wholesale_price),
-      },
+      patch: { item_name: draft.item_name.trim() },
     });
   };
 
@@ -266,15 +233,12 @@ function MasterPage() {
     const q = search.trim().toLowerCase();
     if (!q) return all;
     return all.filter(
-      (r) =>
-        r.item_code.toLowerCase().includes(q) ||
-        r.item_name.toLowerCase().includes(q) ||
-        (r.category ?? "").toLowerCase().includes(q),
+      (r) => r.item_code.toLowerCase().includes(q) || r.item_name.toLowerCase().includes(q),
     );
   }, [all, search]);
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8 space-y-6">
+    <div className="mx-auto max-w-4xl px-6 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Master Inventory</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -314,14 +278,14 @@ function MasterPage() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Required columns: <code>item_code, item_name, category, retail_price, contractor_price, wholesale_price</code>
+          Required: <code>item_code, item_name</code>. Optional: <code>category, brand</code> (drive the brand selector on the workspace).
         </p>
 
         <div className="flex items-center gap-2">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by code, name, or category…"
+              placeholder="Search by code or name…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8"
@@ -341,19 +305,15 @@ function MasterPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
               <tr>
-                <th className="text-left p-3 font-medium">Code</th>
-                <th className="text-left p-3 font-medium">Name</th>
-                <th className="text-left p-3 font-medium">Category</th>
-                <th className="text-right p-3 font-medium">Retail</th>
-                <th className="text-right p-3 font-medium">Contractor</th>
-                <th className="text-right p-3 font-medium">Wholesale</th>
+                <th className="text-left p-3 font-medium w-48">Item Code</th>
+                <th className="text-left p-3 font-medium">Item Name</th>
                 <th className="text-right p-3 font-medium w-24">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-6 text-center text-muted-foreground">
+                  <td colSpan={3} className="p-6 text-center text-muted-foreground">
                     {all.length === 0 ? "No inventory loaded." : "No items match your search."}
                   </td>
                 </tr>
@@ -367,40 +327,13 @@ function MasterPage() {
                       {isEditing ? (
                         <Input
                           value={draft!.item_name}
-                          onChange={(e) => setDraft({ ...draft!, item_name: e.target.value })}
+                          onChange={(e) => setDraft({ item_name: e.target.value })}
                           className="h-8"
                         />
                       ) : (
                         r.item_name
                       )}
                     </td>
-                    <td className="p-3 text-muted-foreground">
-                      {isEditing ? (
-                        <Input
-                          value={draft!.category}
-                          onChange={(e) => setDraft({ ...draft!, category: e.target.value })}
-                          className="h-8"
-                        />
-                      ) : (
-                        r.category ?? "—"
-                      )}
-                    </td>
-                    {(["retail_price", "contractor_price", "wholesale_price"] as const).map((k) => (
-                      <td key={k} className="p-3 text-right">
-                        {isEditing ? (
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={draft![k]}
-                            onChange={(e) => setDraft({ ...draft!, [k]: e.target.value })}
-                            className="h-8 text-right"
-                          />
-                        ) : (
-                          `₹${Number(r[k]).toFixed(2)}`
-                        )}
-                      </td>
-                    ))}
                     <td className="p-3 text-right">
                       <div className="inline-flex gap-1">
                         {isEditing ? (
