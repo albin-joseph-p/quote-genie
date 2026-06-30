@@ -22,7 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/master")({
   head: () => ({
     meta: [
-      { title: "Master Inventory — QuickQuote" },
+      { title: "Master Inventory — Orion Sales Corporation" },
       { name: "description", content: "Upload your master inventory CSV/XLSX." },
     ],
   }),
