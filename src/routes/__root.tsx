@@ -57,7 +57,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "QuickQuote — Quotation Processor" },
+      { title: "Orion Sales Corporation — Quotation Processor" },
       { name: "description", content: "Internal tool to extract, match and price customer quotations." },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
@@ -103,8 +103,8 @@ function RootComponent() {
         <header className="border-b bg-card">
           <div className="mx-auto max-w-7xl px-6 h-16 flex items-center gap-6">
             <Link to="/" className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold">Q</div>
-              <span className="font-semibold tracking-tight">QuickQuote</span>
+              <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold">O</div>
+              <span className="font-semibold tracking-tight">Orion Sales Corporation</span>
             </Link>
             <nav className="flex items-center gap-1 ml-4">
               <NavTab to="/" label="Quotation Workspace" />
