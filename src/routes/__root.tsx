@@ -108,6 +108,7 @@ function RootComponent() {
             </Link>
             <nav className="flex items-center gap-1 ml-4">
               <NavTab to="/" label="Quotation Workspace" />
+              <NavTab to="/categories" label="Categories" />
               <NavTab to="/synonyms" label="Synonyms" />
               <NavTab to="/master" label="Master Inventory" />
             </nav>

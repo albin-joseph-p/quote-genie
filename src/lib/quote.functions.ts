@@ -12,6 +12,7 @@ const Input = z.object({
 export type MatchedItem = {
   extractedText: string;
   itemCode: string | null;
+  category: string | null;
   customerQty?: number | null;
 };
 
@@ -27,17 +28,19 @@ export const processQuotation = createServerFn({ method: "POST" })
       { auth: { persistSession: false, autoRefreshToken: false, storage: undefined } },
     );
 
-    const [{ data: inventory }, { data: synonyms }] = await Promise.all([
-      supabase.from("inventory").select("item_code,item_name,category"),
+    const [{ data: inventory }, { data: synonyms }, { data: categories }] = await Promise.all([
+      supabase.from("inventory").select("item_code,item_name,category,brand"),
       supabase.from("synonyms").select("customer_term,item_code"),
+      supabase.from("categories").select("name").order("name"),
     ]);
 
     const invList = (inventory ?? [])
-      .map((i) => `${i.item_code} | ${i.item_name} | ${i.category ?? ""}`)
+      .map((i) => `${i.item_code} | ${i.item_name} | ${i.category ?? ""} | ${i.brand ?? ""}`)
       .join("\n");
     const synList = (synonyms ?? [])
       .map((s) => `"${s.customer_term}" => ${s.item_code}`)
       .join("\n");
+    const catList = (categories ?? []).map((c) => c.name).join(", ");
 
     const gateway = createLovableAiGatewayProvider(apiKey);
 
@@ -48,12 +51,16 @@ Your job:
 2. Map each extracted line to an Item Code from the Master Inventory.
 3. Use the Synonym Map as HARD overrides — if a customer's text matches a synonym, you MUST use the mapped item_code.
 4. Otherwise pick the best fuzzy match from inventory. If nothing reasonably matches, set item_code to null.
-5. Ignore prices, totals, headers, addresses, dates, signatures.
+5. Classify each line into ONE of the ALLOWED CATEGORIES below. NEVER invent a category. If none fits, set category to null.
+6. Ignore prices, totals, headers, addresses, dates, signatures.
 
 Return ONLY valid JSON, no prose, no markdown fences. Shape:
-{"items":[{"extractedText":"<as written by customer>","itemCode":"<code or null>","customerQty":<number or null>}]}
+{"items":[{"extractedText":"<as written by customer>","itemCode":"<code or null>","category":"<one of allowed or null>","customerQty":<number or null>}]}
 
-== MASTER INVENTORY (item_code | item_name | category) ==
+== ALLOWED CATEGORIES (strict — use one of these or null) ==
+${catList || "(none defined yet — set category to null)"}
+
+== MASTER INVENTORY (item_code | item_name | category | brand) ==
 ${invList || "(empty)"}
 
 == SYNONYM MAP (customer_term => item_code) ==
@@ -78,18 +85,19 @@ ${synList || "(none)"}`;
 
     const text = result.text.trim();
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return { items: [] };
-    }
+    if (!jsonMatch) return { items: [] };
+
     let parsed: { items?: MatchedItem[] };
     try {
       parsed = JSON.parse(jsonMatch[0]);
     } catch {
       return { items: [] };
     }
+    const allowedCats = new Set((categories ?? []).map((c) => c.name));
     const items = (parsed.items ?? []).map((i) => ({
       extractedText: String(i.extractedText ?? ""),
       itemCode: i.itemCode ? String(i.itemCode) : null,
+      category: i.category && allowedCats.has(String(i.category)) ? String(i.category) : null,
       customerQty: typeof i.customerQty === "number" ? i.customerQty : null,
     }));
     return { items };

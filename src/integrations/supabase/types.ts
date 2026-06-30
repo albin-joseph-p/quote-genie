@@ -14,33 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      brands: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brands_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       inventory: {
         Row: {
+          brand: string
           category: string | null
-          contractor_price: number
           created_at: string
           item_code: string
           item_name: string
-          retail_price: number
-          wholesale_price: number
         }
         Insert: {
+          brand?: string
           category?: string | null
-          contractor_price?: number
           created_at?: string
           item_code: string
           item_name: string
-          retail_price?: number
-          wholesale_price?: number
         }
         Update: {
+          brand?: string
           category?: string | null
-          contractor_price?: number
           created_at?: string
           item_code?: string
           item_name?: string
-          retail_price?: number
-          wholesale_price?: number
         }
         Relationships: []
       }
