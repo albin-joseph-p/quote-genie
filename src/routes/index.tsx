@@ -657,6 +657,3 @@ function InventoryCombobox({
     </Popover>
   );
 }
-
-// Re-import for CategoryBrandRow helper above
-import { useQueryClient } from "@tanstack/react-query";
