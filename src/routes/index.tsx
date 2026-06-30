@@ -57,7 +57,7 @@ type Brand = { id: string; category_id: string; name: string };
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Quotation Workspace — QuickQuote" },
+      { title: "Quotation Workspace — Orion Sales Corporation" },
       { name: "description", content: "Upload customer quote images, classify by category, lock per-category brand, and export." },
     ],
   }),

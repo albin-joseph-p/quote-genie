@@ -19,7 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/synonyms")({
   head: () => ({
     meta: [
-      { title: "Synonyms — QuickQuote" },
+      { title: "Synonyms — Orion Sales Corporation" },
       { name: "description", content: "Hardcode customer-term to internal-item-code mappings." },
     ],
   }),

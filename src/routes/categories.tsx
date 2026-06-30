@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/categories")({
   head: () => ({
     meta: [
-      { title: "Categories & Brands — QuickQuote" },
+      { title: "Categories & Brands — Orion Sales Corporation" },
       { name: "description", content: "Manage product categories and their brands." },
     ],
   }),
