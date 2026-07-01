@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetch-all";
 
 export const Route = createFileRoute("/master")({
   head: () => ({
@@ -51,14 +52,10 @@ function MasterPage() {
 
   const invQ = useQuery({
     queryKey: ["inventory"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("inventory")
-        .select("item_code,item_name,category,brand")
-        .order("item_name");
-      if (error) throw error;
-      return (data ?? []) as Inv[];
-    },
+    queryFn: async () =>
+      fetchAllRows<Inv>("inventory", "item_code,item_name,category,brand", {
+        orderBy: "item_name",
+      }),
   });
 
   const wipe = useMutation({

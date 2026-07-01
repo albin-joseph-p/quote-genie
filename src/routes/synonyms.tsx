@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetch-all";
 
 export const Route = createFileRoute("/synonyms")({
   head: () => ({
@@ -47,14 +48,8 @@ function SynonymsPage() {
   });
   const invQ = useQuery({
     queryKey: ["inventory-min"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("inventory")
-        .select("item_code,item_name")
-        .order("item_name");
-      if (error) throw error;
-      return (data ?? []) as Inv[];
-    },
+    queryFn: async () =>
+      fetchAllRows<Inv>("inventory", "item_code,item_name", { orderBy: "item_name" }),
   });
 
   const add = useMutation({

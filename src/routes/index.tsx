@@ -34,6 +34,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { processQuotation } from "@/lib/quote.functions";
 import { cn } from "@/lib/utils";
+import { fetchAllRows } from "@/lib/fetch-all";
 
 type InventoryRow = {
   item_code: string;
@@ -77,14 +78,10 @@ function Workspace() {
 
   const inventoryQ = useQuery({
     queryKey: ["inventory"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("inventory")
-        .select("item_code,item_name,category,brand")
-        .order("item_name");
-      if (error) throw error;
-      return (data ?? []) as InventoryRow[];
-    },
+    queryFn: async () =>
+      fetchAllRows<InventoryRow>("inventory", "item_code,item_name,category,brand", {
+        orderBy: "item_name",
+      }),
   });
   const categoriesQ = useQuery({
     queryKey: ["categories"],
