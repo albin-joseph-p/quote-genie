@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_instructions: {
+        Row: {
+          id: string
+          instructions: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          instructions?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          instructions?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       brands: {
         Row: {
           category_id: string
@@ -82,6 +100,33 @@ export type Database = {
           created_at?: string
           item_code?: string
           item_name?: string
+        }
+        Relationships: []
+      }
+      quotations: {
+        Row: {
+          created_at: string
+          customer_name: string
+          id: string
+          image_urls: string[]
+          item_count: number
+          items: Json
+        }
+        Insert: {
+          created_at?: string
+          customer_name?: string
+          id?: string
+          image_urls?: string[]
+          item_count?: number
+          items?: Json
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string
+          id?: string
+          image_urls?: string[]
+          item_count?: number
+          items?: Json
         }
         Relationships: []
       }
