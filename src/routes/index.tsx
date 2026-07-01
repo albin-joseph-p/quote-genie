@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -14,6 +14,7 @@ import {
   Check,
   ChevronsUpDown,
   Plus,
+  Save,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -69,12 +70,40 @@ function Workspace() {
   const process = useServerFn(processQuotation);
   const fileRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [previews, setPreviews] = useState<{ url: string; name: string }[]>([]);
+  const [uploadedPaths, setUploadedPaths] = useState<string[]>([]);
   const [zoomed, setZoomed] = useState<{ url: string; name: string } | null>(null);
+  const [customerName, setCustomerName] = useState("");
   // category name → selected brand name
   const [brandByCategory, setBrandByCategory] = useState<Record<string, string>>({});
+
+  // Reopen from history
+  useEffect(() => {
+    const raw = sessionStorage.getItem("reuse-quotation");
+    if (!raw) return;
+    sessionStorage.removeItem("reuse-quotation");
+    try {
+      const parsed = JSON.parse(raw) as { customer_name?: string; items?: Array<{ extractedText: string; itemCode: string | null; category: string | null; qty: number }> };
+      if (parsed.customer_name) setCustomerName(parsed.customer_name);
+      const stamp = Date.now();
+      setRows(
+        (parsed.items ?? []).map((it, idx) => ({
+          id: `reuse-${stamp}-${idx}`,
+          extractedText: it.extractedText,
+          itemCode: it.itemCode,
+          category: it.category,
+          qty: it.qty ?? 1,
+          aiItemCode: it.itemCode,
+        })),
+      );
+      toast.success("Loaded quotation from history");
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   const inventoryQ = useQuery({
     queryKey: ["inventory"],
@@ -140,15 +169,28 @@ function Workspace() {
     const results = await Promise.allSettled(
       batch.map(async (file, idx) => {
         const base64 = await fileToBase64(file);
-        const res = await process({ data: { imageBase64: base64, mimeType: file.type } });
-        return { idx, items: res.items };
+        // Upload to storage in parallel with AI processing
+        const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+        const path = `${batchStamp}/${idx}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const uploadP = supabase.storage
+          .from("quotation-images")
+          .upload(path, file, { contentType: file.type, upsert: false })
+          .then((r) => (r.error ? null : path))
+          .catch(() => null);
+        const [res, storagePath] = await Promise.all([
+          process({ data: { imageBase64: base64, mimeType: file.type } }),
+          uploadP,
+        ]);
+        return { idx, items: res.items, storagePath };
       }),
     );
 
+    const newPaths: string[] = [];
     for (const r of results) {
       if (r.status === "fulfilled") {
         succeeded += 1;
-        const { idx, items } = r.value;
+        const { idx, items, storagePath } = r.value;
+        if (storagePath) newPaths.push(storagePath);
         const newRows: Row[] = items.map((it, rIdx) => ({
           id: `${batchStamp}-${idx}-${rIdx}`,
           extractedText: it.extractedText,
@@ -166,6 +208,7 @@ function Workspace() {
         setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
       }
     }
+    setUploadedPaths((prev) => [...prev, ...newPaths]);
 
     setLoading(false);
     setProgress(null);
@@ -177,6 +220,34 @@ function Workspace() {
     setPreviews([]);
     setRows([]);
     setBrandByCategory({});
+    setUploadedPaths([]);
+    setCustomerName("");
+  };
+
+  const saveToHistory = async () => {
+    if (rows.length === 0) {
+      toast.error("Nothing to save.");
+      return;
+    }
+    setSaving(true);
+    const items = rows.map((r) => ({
+      extractedText: r.extractedText,
+      itemCode: r.itemCode,
+      category: r.category,
+      qty: r.qty,
+    }));
+    const { error } = await supabase.from("quotations").insert({
+      customer_name: customerName.trim(),
+      image_urls: uploadedPaths,
+      items,
+      item_count: rows.length,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("Save failed: " + error.message);
+      return;
+    }
+    toast.success("Saved to History");
   };
 
   // Categories detected across current rows
@@ -257,6 +328,19 @@ function Workspace() {
           Upload customer quote images. AI extracts items and classifies them into your categories.
         </p>
       </div>
+
+      {/* Customer name */}
+      <Card className="p-4">
+        <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+          Customer Name
+        </label>
+        <Input
+          value={customerName}
+          onChange={(e) => setCustomerName(e.target.value)}
+          placeholder="Whom is this quotation for?"
+          className="max-w-md"
+        />
+      </Card>
 
       {/* Upload */}
       <Card className="p-6">
@@ -365,6 +449,9 @@ function Workspace() {
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" onClick={clearAll}>
                 <X className="h-4 w-4 mr-2" /> Clear all
+              </Button>
+              <Button variant="outline" size="sm" onClick={saveToHistory} disabled={saving}>
+                <Save className="h-4 w-4 mr-2" /> {saving ? "Saving…" : "Save to History"}
               </Button>
               <Button variant="outline" size="sm" onClick={handleCopy}>
                 <Copy className="h-4 w-4 mr-2" /> Copy
