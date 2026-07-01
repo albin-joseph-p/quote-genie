@@ -168,15 +168,28 @@ function Workspace() {
     const results = await Promise.allSettled(
       batch.map(async (file, idx) => {
         const base64 = await fileToBase64(file);
-        const res = await process({ data: { imageBase64: base64, mimeType: file.type } });
-        return { idx, items: res.items };
+        // Upload to storage in parallel with AI processing
+        const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+        const path = `${batchStamp}/${idx}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const uploadP = supabase.storage
+          .from("quotation-images")
+          .upload(path, file, { contentType: file.type, upsert: false })
+          .then((r) => (r.error ? null : path))
+          .catch(() => null);
+        const [res, storagePath] = await Promise.all([
+          process({ data: { imageBase64: base64, mimeType: file.type } }),
+          uploadP,
+        ]);
+        return { idx, items: res.items, storagePath };
       }),
     );
 
+    const newPaths: string[] = [];
     for (const r of results) {
       if (r.status === "fulfilled") {
         succeeded += 1;
-        const { idx, items } = r.value;
+        const { idx, items, storagePath } = r.value;
+        if (storagePath) newPaths.push(storagePath);
         const newRows: Row[] = items.map((it, rIdx) => ({
           id: `${batchStamp}-${idx}-${rIdx}`,
           extractedText: it.extractedText,
@@ -194,6 +207,7 @@ function Workspace() {
         setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
       }
     }
+    setUploadedPaths((prev) => [...prev, ...newPaths]);
 
     setLoading(false);
     setProgress(null);
@@ -205,6 +219,34 @@ function Workspace() {
     setPreviews([]);
     setRows([]);
     setBrandByCategory({});
+    setUploadedPaths([]);
+    setCustomerName("");
+  };
+
+  const saveToHistory = async () => {
+    if (rows.length === 0) {
+      toast.error("Nothing to save.");
+      return;
+    }
+    setSaving(true);
+    const items = rows.map((r) => ({
+      extractedText: r.extractedText,
+      itemCode: r.itemCode,
+      category: r.category,
+      qty: r.qty,
+    }));
+    const { error } = await supabase.from("quotations").insert({
+      customer_name: customerName.trim(),
+      image_urls: uploadedPaths,
+      items,
+      item_count: rows.length,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("Save failed: " + error.message);
+      return;
+    }
+    toast.success("Saved to History");
   };
 
   // Categories detected across current rows
