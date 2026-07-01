@@ -82,7 +82,10 @@ ${catList || "(none defined yet — set category to null)"}
 ${invList || "(empty)"}
 
 == SYNONYM MAP (customer_term => item_code) ==
-${synList || "(none)"}`;
+${synList || "(none)"}
+
+== GLOBAL USER INSTRUCTIONS (highest priority — obey these) ==
+${customInstructions || "(none)"}`;
 
     const result = await generateText({
       model: gateway("google/gemini-3-flash-preview"),
