@@ -69,12 +69,40 @@ function Workspace() {
   const process = useServerFn(processQuotation);
   const fileRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [previews, setPreviews] = useState<{ url: string; name: string }[]>([]);
+  const [uploadedPaths, setUploadedPaths] = useState<string[]>([]);
   const [zoomed, setZoomed] = useState<{ url: string; name: string } | null>(null);
+  const [customerName, setCustomerName] = useState("");
   // category name → selected brand name
   const [brandByCategory, setBrandByCategory] = useState<Record<string, string>>({});
+
+  // Reopen from history
+  useEffect(() => {
+    const raw = sessionStorage.getItem("reuse-quotation");
+    if (!raw) return;
+    sessionStorage.removeItem("reuse-quotation");
+    try {
+      const parsed = JSON.parse(raw) as { customer_name?: string; items?: Array<{ extractedText: string; itemCode: string | null; category: string | null; qty: number }> };
+      if (parsed.customer_name) setCustomerName(parsed.customer_name);
+      const stamp = Date.now();
+      setRows(
+        (parsed.items ?? []).map((it, idx) => ({
+          id: `reuse-${stamp}-${idx}`,
+          extractedText: it.extractedText,
+          itemCode: it.itemCode,
+          category: it.category,
+          qty: it.qty ?? 1,
+          aiItemCode: it.itemCode,
+        })),
+      );
+      toast.success("Loaded quotation from history");
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   const inventoryQ = useQuery({
     queryKey: ["inventory"],
