@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SynonymsRouteImport } from './routes/synonyms'
 import { Route as MasterRouteImport } from './routes/master'
+import { Route as HistoryRouteImport } from './routes/history'
 import { Route as CategoriesRouteImport } from './routes/categories'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -22,6 +23,11 @@ const SynonymsRoute = SynonymsRouteImport.update({
 const MasterRoute = MasterRouteImport.update({
   id: '/master',
   path: '/master',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoryRoute = HistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CategoriesRoute = CategoriesRouteImport.update({
@@ -38,12 +44,14 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/categories': typeof CategoriesRoute
+  '/history': typeof HistoryRoute
   '/master': typeof MasterRoute
   '/synonyms': typeof SynonymsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/categories': typeof CategoriesRoute
+  '/history': typeof HistoryRoute
   '/master': typeof MasterRoute
   '/synonyms': typeof SynonymsRoute
 }
@@ -51,20 +59,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/categories': typeof CategoriesRoute
+  '/history': typeof HistoryRoute
   '/master': typeof MasterRoute
   '/synonyms': typeof SynonymsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/categories' | '/master' | '/synonyms'
+  fullPaths: '/' | '/categories' | '/history' | '/master' | '/synonyms'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/categories' | '/master' | '/synonyms'
-  id: '__root__' | '/' | '/categories' | '/master' | '/synonyms'
+  to: '/' | '/categories' | '/history' | '/master' | '/synonyms'
+  id: '__root__' | '/' | '/categories' | '/history' | '/master' | '/synonyms'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CategoriesRoute: typeof CategoriesRoute
+  HistoryRoute: typeof HistoryRoute
   MasterRoute: typeof MasterRoute
   SynonymsRoute: typeof SynonymsRoute
 }
@@ -83,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/master'
       fullPath: '/master'
       preLoaderRoute: typeof MasterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/history': {
+      id: '/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof HistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/categories': {
@@ -105,6 +122,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CategoriesRoute: CategoriesRoute,
+  HistoryRoute: HistoryRoute,
   MasterRoute: MasterRoute,
   SynonymsRoute: SynonymsRoute,
 }
