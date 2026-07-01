@@ -44,10 +44,11 @@ export const processQuotation = createServerFn({ method: "POST" })
       return rows;
     };
 
-    const [inventory, { data: synonyms }, { data: categories }] = await Promise.all([
+    const [inventory, { data: synonyms }, { data: categories }, { data: instructionsRow }] = await Promise.all([
       fetchAllInventory(),
       supabase.from("synonyms").select("customer_term,item_code"),
       supabase.from("categories").select("name").order("name"),
+      supabase.from("ai_instructions").select("instructions").limit(1).maybeSingle(),
     ]);
 
     const invList = (inventory ?? [])
@@ -57,6 +58,7 @@ export const processQuotation = createServerFn({ method: "POST" })
       .map((s) => `"${s.customer_term}" => ${s.item_code}`)
       .join("\n");
     const catList = (categories ?? []).map((c) => c.name).join(", ");
+    const customInstructions = (instructionsRow?.instructions ?? "").trim();
 
     const gateway = createLovableAiGatewayProvider(apiKey);
 
