@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -29,6 +30,7 @@ export const Route = createFileRoute("/synonyms")({
 
 type Syn = { id: string; customer_term: string; item_code: string };
 type Inv = { item_code: string; item_name: string };
+type Instr = { id: string; instructions: string };
 
 function SynonymsPage() {
   const qc = useQueryClient();
@@ -75,6 +77,44 @@ function SynonymsPage() {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["synonyms"] }),
+  });
+
+  // ---- Global AI Instructions ----
+  const instrQ = useQuery({
+    queryKey: ["ai-instructions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ai_instructions")
+        .select("id,instructions")
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as Instr | null;
+    },
+  });
+  const [instrText, setInstrText] = useState("");
+  useEffect(() => {
+    if (instrQ.data) setInstrText(instrQ.data.instructions ?? "");
+  }, [instrQ.data]);
+
+  const saveInstr = useMutation({
+    mutationFn: async () => {
+      if (instrQ.data?.id) {
+        const { error } = await supabase
+          .from("ai_instructions")
+          .update({ instructions: instrText, updated_at: new Date().toISOString() })
+          .eq("id", instrQ.data.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("ai_instructions").insert({ instructions: instrText });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("AI instructions saved");
+      qc.invalidateQueries({ queryKey: ["ai-instructions"] });
+    },
+    onError: (e) => toast.error(e.message),
   });
 
   return (
@@ -143,6 +183,32 @@ function SynonymsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      </Card>
+
+      <Card className="p-6 space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Global AI Instructions</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Free-form rules injected into the AI prompt every time a quotation image is processed.
+            Use this for edge-case handling, parsing priorities, or general behavioral guidance.
+          </p>
+        </div>
+        <Textarea
+          value={instrText}
+          onChange={(e) => setInstrText(e.target.value)}
+          placeholder={`Example:
+- If the customer writes "wire" without a size, assume 1.5 sqmm.
+- Ignore any lines that contain the word "sample".
+- Prefer Havells over Anchor when both match a switch item.`}
+          className="min-h-[180px] font-mono text-sm"
+          disabled={instrQ.isLoading}
+        />
+        <div className="flex justify-end">
+          <Button onClick={() => saveInstr.mutate()} disabled={saveInstr.isPending}>
+            <Save className="h-4 w-4 mr-2" />
+            {saveInstr.isPending ? "Saving…" : "Save Instructions"}
+          </Button>
         </div>
       </Card>
     </div>
