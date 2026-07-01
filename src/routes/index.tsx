@@ -329,6 +329,19 @@ function Workspace() {
         </p>
       </div>
 
+      {/* Customer name */}
+      <Card className="p-4">
+        <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+          Customer Name
+        </label>
+        <Input
+          value={customerName}
+          onChange={(e) => setCustomerName(e.target.value)}
+          placeholder="Whom is this quotation for?"
+          className="max-w-md"
+        />
+      </Card>
+
       {/* Upload */}
       <Card className="p-6">
         <div
