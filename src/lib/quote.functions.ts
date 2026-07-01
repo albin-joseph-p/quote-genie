@@ -28,8 +28,24 @@ export const processQuotation = createServerFn({ method: "POST" })
       { auth: { persistSession: false, autoRefreshToken: false, storage: undefined } },
     );
 
-    const [{ data: inventory }, { data: synonyms }, { data: categories }] = await Promise.all([
-      supabase.from("inventory").select("item_code,item_name,category,brand"),
+    const fetchAllInventory = async () => {
+      const rows: { item_code: string; item_name: string; category: string | null; brand: string | null }[] = [];
+      const PAGE = 1000;
+      for (let from = 0; from < 20000; from += PAGE) {
+        const { data, error } = await supabase
+          .from("inventory")
+          .select("item_code,item_name,category,brand")
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const chunk = data ?? [];
+        rows.push(...chunk);
+        if (chunk.length < PAGE) break;
+      }
+      return rows;
+    };
+
+    const [inventory, { data: synonyms }, { data: categories }] = await Promise.all([
+      fetchAllInventory(),
       supabase.from("synonyms").select("customer_term,item_code"),
       supabase.from("categories").select("name").order("name"),
     ]);
