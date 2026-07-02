@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Upload, Trash2, Download, Search, Pencil, Check, X } from "lucide-react";
+import { Upload, Trash2, Download, Search, Pencil, Check, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetch-all";
 
@@ -37,7 +44,7 @@ type Inv = {
   brand: string;
 };
 
-type Draft = { item_name: string };
+type Draft = { item_name: string; category: string; brand: string };
 
 const REQUIRED = ["item_code", "item_name"];
 
@@ -49,6 +56,14 @@ function MasterPage() {
   const [editingCode, setEditingCode] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addDraft, setAddDraft] = useState<{ item_code: string; item_name: string; category: string; brand: string }>({
+    item_code: "",
+    item_name: "",
+    category: "",
+    brand: "",
+  });
+  const [deleteCode, setDeleteCode] = useState<string | null>(null);
 
   const invQ = useQuery({
     queryKey: ["inventory"],
@@ -69,7 +84,10 @@ function MasterPage() {
   });
 
   const updateRow = useMutation({
-    mutationFn: async (payload: { item_code: string; patch: { item_name: string } }) => {
+    mutationFn: async (payload: {
+      item_code: string;
+      patch: { item_name: string; category: string | null; brand: string };
+    }) => {
       const { error } = await supabase
         .from("inventory")
         .update(payload.patch)
@@ -82,6 +100,38 @@ function MasterPage() {
       setEditingCode(null);
       setDraft(null);
       setConfirmOpen(false);
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const addRow = useMutation({
+    mutationFn: async (row: Inv) => {
+      const { error } = await supabase.from("inventory").insert(row);
+      if (error) throw error;
+      const cat = row.category?.trim();
+      if (cat) {
+        await supabase.from("categories").upsert({ name: cat }, { onConflict: "name" });
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      toast.success("Item added");
+      setAddOpen(false);
+      setAddDraft({ item_code: "", item_name: "", category: "", brand: "" });
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const delRow = useMutation({
+    mutationFn: async (item_code: string) => {
+      const { error } = await supabase.from("inventory").delete().eq("item_code", item_code);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+      toast.success("Item deleted");
+      setDeleteCode(null);
     },
     onError: (e) => toast.error((e as Error).message),
   });
@@ -146,7 +196,6 @@ function MasterPage() {
         if (error) throw error;
       }
 
-      // Auto-create any new categories found in the upload
       const cats = Array.from(new Set(deduped.map((r) => r.category).filter((c): c is string => !!c)));
       if (cats.length) {
         await supabase.from("categories").upsert(cats.map((name) => ({ name })), { onConflict: "name" });
@@ -180,7 +229,7 @@ function MasterPage() {
 
   const startEdit = (r: Inv) => {
     setEditingCode(r.item_code);
-    setDraft({ item_name: r.item_name });
+    setDraft({ item_name: r.item_name, category: r.category ?? "", brand: r.brand ?? "" });
   };
 
   const cancelEdit = () => {
@@ -204,9 +253,14 @@ function MasterPage() {
 
   const diff = useMemo(() => {
     if (!editingOriginal || !draft) return [] as { field: string; old: string; next: string }[];
-    const next = draft.item_name.trim();
-    if (next === editingOriginal.item_name) return [];
-    return [{ field: "Name", old: editingOriginal.item_name, next }];
+    const out: { field: string; old: string; next: string }[] = [];
+    const name = draft.item_name.trim();
+    const cat = draft.category.trim();
+    const brand = draft.brand.trim();
+    if (name !== editingOriginal.item_name) out.push({ field: "Name", old: editingOriginal.item_name, next: name });
+    if (cat !== (editingOriginal.category ?? "")) out.push({ field: "Category", old: editingOriginal.category ?? "—", next: cat || "—" });
+    if (brand !== (editingOriginal.brand ?? "")) out.push({ field: "Brand", old: editingOriginal.brand || "—", next: brand || "—" });
+    return out;
   }, [editingOriginal, draft]);
 
   const confirmSave = () => {
@@ -220,7 +274,26 @@ function MasterPage() {
     }
     updateRow.mutate({
       item_code: editingOriginal.item_code,
-      patch: { item_name: draft.item_name.trim() },
+      patch: {
+        item_name: draft.item_name.trim(),
+        category: draft.category.trim() || null,
+        brand: draft.brand.trim(),
+      },
+    });
+  };
+
+  const submitAdd = () => {
+    const item_code = addDraft.item_code.trim();
+    const item_name = addDraft.item_name.trim();
+    if (!item_code || !item_name) {
+      toast.error("Item code and name are required");
+      return;
+    }
+    addRow.mutate({
+      item_code,
+      item_name,
+      category: addDraft.category.trim() || null,
+      brand: addDraft.brand.trim(),
     });
   };
 
@@ -232,17 +305,24 @@ function MasterPage() {
     const q = search.trim().toLowerCase();
     if (!q) return all;
     return all.filter(
-      (r) => r.item_code.toLowerCase().includes(q) || r.item_name.toLowerCase().includes(q),
+      (r) =>
+        r.item_code.toLowerCase().includes(q) ||
+        r.item_name.toLowerCase().includes(q) ||
+        (r.category ?? "").toLowerCase().includes(q) ||
+        (r.brand ?? "").toLowerCase().includes(q),
     );
   }, [all, search]);
-  // Rendering 12k+ <tr>s freezes the page; cap the visible slice when not searching.
   const VISIBLE_CAP = 300;
   const visible = useMemo(() => filtered.slice(0, VISIBLE_CAP), [filtered]);
   const hiddenCount = filtered.length - visible.length;
 
+  const rowBeingDeleted = useMemo(
+    () => (invQ.data ?? []).find((r) => r.item_code === deleteCode) ?? null,
+    [invQ.data, deleteCode],
+  );
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-8 space-y-6">
+    <div className="mx-auto max-w-5xl px-6 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Master Inventory</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -269,6 +349,9 @@ function MasterPage() {
           <Button variant="outline" onClick={downloadTemplate}>
             <Download className="h-4 w-4 mr-2" /> Template
           </Button>
+          <Button variant="outline" onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Add Item
+          </Button>
           {all.length > 0 && (
             <Button
               variant="outline"
@@ -289,7 +372,7 @@ function MasterPage() {
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by code or name…"
+              placeholder="Search by code, name, category, or brand…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8"
@@ -309,15 +392,17 @@ function MasterPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
               <tr>
-                <th className="text-left p-3 font-medium w-48">Item Code</th>
+                <th className="text-left p-3 font-medium w-40">Item Code</th>
                 <th className="text-left p-3 font-medium">Item Name</th>
-                <th className="text-right p-3 font-medium w-24">Actions</th>
+                <th className="text-left p-3 font-medium w-40">Category</th>
+                <th className="text-left p-3 font-medium w-40">Brand</th>
+                <th className="text-right p-3 font-medium w-28">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="p-6 text-center text-muted-foreground">
+                  <td colSpan={5} className="p-6 text-center text-muted-foreground">
                     {all.length === 0 ? "No inventory loaded." : "No items match your search."}
                   </td>
                 </tr>
@@ -331,11 +416,33 @@ function MasterPage() {
                       {isEditing ? (
                         <Input
                           value={draft!.item_name}
-                          onChange={(e) => setDraft({ item_name: e.target.value })}
+                          onChange={(e) => setDraft({ ...draft!, item_name: e.target.value })}
                           className="h-8"
                         />
                       ) : (
                         r.item_name
+                      )}
+                    </td>
+                    <td className="p-3">
+                      {isEditing ? (
+                        <Input
+                          value={draft!.category}
+                          onChange={(e) => setDraft({ ...draft!, category: e.target.value })}
+                          className="h-8"
+                        />
+                      ) : (
+                        r.category || <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      {isEditing ? (
+                        <Input
+                          value={draft!.brand}
+                          onChange={(e) => setDraft({ ...draft!, brand: e.target.value })}
+                          className="h-8"
+                        />
+                      ) : (
+                        r.brand || <span className="text-muted-foreground">—</span>
                       )}
                     </td>
                     <td className="p-3 text-right">
@@ -350,16 +457,28 @@ function MasterPage() {
                             </Button>
                           </>
                         ) : (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7"
-                            onClick={() => startEdit(r)}
-                            disabled={editingCode !== null}
-                            title="Edit"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          <>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => startEdit(r)}
+                              disabled={editingCode !== null}
+                              title="Edit"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              onClick={() => setDeleteCode(r.item_code)}
+                              disabled={editingCode !== null}
+                              title="Delete"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -368,7 +487,7 @@ function MasterPage() {
               })}
               {hiddenCount > 0 && (
                 <tr className="border-t bg-muted/20">
-                  <td colSpan={3} className="p-3 text-center text-xs text-muted-foreground">
+                  <td colSpan={5} className="p-3 text-center text-xs text-muted-foreground">
                     Showing first {visible.length.toLocaleString()} of {filtered.length.toLocaleString()} items — use the search box above to find the rest.
                   </td>
                 </tr>
@@ -419,6 +538,80 @@ function MasterPage() {
             <AlertDialogCancel disabled={updateRow.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmSave} disabled={updateRow.isPending || diff.length === 0}>
               {updateRow.isPending ? "Saving…" : "Confirm"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add new item</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Item Code *</label>
+              <Input
+                value={addDraft.item_code}
+                onChange={(e) => setAddDraft({ ...addDraft, item_code: e.target.value })}
+                placeholder="e.g. ELEC-FIN-15"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Item Name *</label>
+              <Input
+                value={addDraft.item_name}
+                onChange={(e) => setAddDraft({ ...addDraft, item_name: e.target.value })}
+                placeholder="e.g. 1.5 sqmm Wire (90m)"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Category</label>
+              <Input
+                value={addDraft.category}
+                onChange={(e) => setAddDraft({ ...addDraft, category: e.target.value })}
+                placeholder="e.g. Wires"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Brand</label>
+              <Input
+                value={addDraft.brand}
+                onChange={(e) => setAddDraft({ ...addDraft, brand: e.target.value })}
+                placeholder="e.g. Finolex"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)} disabled={addRow.isPending}>
+              Cancel
+            </Button>
+            <Button onClick={submitAdd} disabled={addRow.isPending}>
+              {addRow.isPending ? "Adding…" : "Add Item"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={deleteCode !== null} onOpenChange={(o) => !o && setDeleteCode(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {rowBeingDeleted ? (
+                <>
+                  This will permanently remove <span className="font-mono">{rowBeingDeleted.item_code}</span> — {rowBeingDeleted.item_name}.
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={delRow.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteCode && delRow.mutate(deleteCode)}
+              disabled={delRow.isPending}
+            >
+              {delRow.isPending ? "Deleting…" : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
