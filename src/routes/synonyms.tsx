@@ -49,10 +49,11 @@ function SynonymsPage() {
     },
   });
   const invQ = useQuery({
-    queryKey: ["inventory-min"],
+    queryKey: ["inventory"],
     queryFn: async () =>
-      fetchAllRows<Inv>("inventory", "item_code,item_name", { orderBy: "item_name" }),
+      fetchAllRows<Inv>("inventory", "item_code,item_name,category,brand"),
   });
+
 
   const add = useMutation({
     mutationFn: async () => {

@@ -108,10 +108,9 @@ function Workspace() {
   const inventoryQ = useQuery({
     queryKey: ["inventory"],
     queryFn: async () =>
-      fetchAllRows<InventoryRow>("inventory", "item_code,item_name,category,brand", {
-        orderBy: "item_name",
-      }),
+      fetchAllRows<InventoryRow>("inventory", "item_code,item_name,category,brand"),
   });
+
   const categoriesQ = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {

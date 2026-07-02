@@ -53,10 +53,9 @@ function MasterPage() {
   const invQ = useQuery({
     queryKey: ["inventory"],
     queryFn: async () =>
-      fetchAllRows<Inv>("inventory", "item_code,item_name,category,brand", {
-        orderBy: "item_name",
-      }),
+      fetchAllRows<Inv>("inventory", "item_code,item_name,category,brand"),
   });
+
 
   const wipe = useMutation({
     mutationFn: async () => {
@@ -225,7 +224,10 @@ function MasterPage() {
     });
   };
 
-  const all = invQ.data ?? [];
+  const all = useMemo(() => {
+    const rows = invQ.data ?? [];
+    return [...rows].sort((a, b) => a.item_name.localeCompare(b.item_name));
+  }, [invQ.data]);
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return all;
@@ -233,6 +235,11 @@ function MasterPage() {
       (r) => r.item_code.toLowerCase().includes(q) || r.item_name.toLowerCase().includes(q),
     );
   }, [all, search]);
+  // Rendering 12k+ <tr>s freezes the page; cap the visible slice when not searching.
+  const VISIBLE_CAP = 300;
+  const visible = useMemo(() => filtered.slice(0, VISIBLE_CAP), [filtered]);
+  const hiddenCount = filtered.length - visible.length;
+
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-8 space-y-6">
@@ -315,7 +322,7 @@ function MasterPage() {
                   </td>
                 </tr>
               )}
-              {filtered.map((r) => {
+              {visible.map((r) => {
                 const isEditing = editingCode === r.item_code && draft;
                 return (
                   <tr key={r.item_code} className="border-t">
@@ -359,6 +366,14 @@ function MasterPage() {
                   </tr>
                 );
               })}
+              {hiddenCount > 0 && (
+                <tr className="border-t bg-muted/20">
+                  <td colSpan={3} className="p-3 text-center text-xs text-muted-foreground">
+                    Showing first {visible.length.toLocaleString()} of {filtered.length.toLocaleString()} items — use the search box above to find the rest.
+                  </td>
+                </tr>
+              )}
+
             </tbody>
           </table>
         </div>
