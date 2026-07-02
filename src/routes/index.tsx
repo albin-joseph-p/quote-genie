@@ -274,10 +274,12 @@ function Workspace() {
     setRows((rs) =>
       rs.map((r) => {
         if (r.category !== categoryName) return r;
-        const candidates = inventory.filter(
-          (i) => (i.category ?? "") === categoryName && i.brand === brandName,
-        );
-        if (candidates.length === 0) return r;
+        // Inventory.category is often unpopulated, so match by brand only.
+        // If inventory rows do have a category set, prefer those that also match.
+        const brandMatches = inventory.filter((i) => i.brand === brandName);
+        if (brandMatches.length === 0) return r;
+        const withCat = brandMatches.filter((i) => (i.category ?? "") === categoryName);
+        const candidates = withCat.length > 0 ? withCat : brandMatches;
         let best = candidates[0];
         let bestScore = -1;
         for (const c of candidates) {
