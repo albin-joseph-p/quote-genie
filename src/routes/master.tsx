@@ -322,7 +322,7 @@ function MasterPage() {
                   </td>
                 </tr>
               )}
-              {filtered.map((r) => {
+              {visible.map((r) => {
                 const isEditing = editingCode === r.item_code && draft;
                 return (
                   <tr key={r.item_code} className="border-t">
@@ -366,6 +366,14 @@ function MasterPage() {
                   </tr>
                 );
               })}
+              {hiddenCount > 0 && (
+                <tr className="border-t bg-muted/20">
+                  <td colSpan={3} className="p-3 text-center text-xs text-muted-foreground">
+                    Showing first {visible.length.toLocaleString()} of {filtered.length.toLocaleString()} items — use the search box above to find the rest.
+                  </td>
+                </tr>
+              )}
+
             </tbody>
           </table>
         </div>
