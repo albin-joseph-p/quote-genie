@@ -53,10 +53,9 @@ function MasterPage() {
   const invQ = useQuery({
     queryKey: ["inventory"],
     queryFn: async () =>
-      fetchAllRows<Inv>("inventory", "item_code,item_name,category,brand", {
-        orderBy: "item_name",
-      }),
+      fetchAllRows<Inv>("inventory", "item_code,item_name,category,brand"),
   });
+
 
   const wipe = useMutation({
     mutationFn: async () => {
