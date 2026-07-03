@@ -87,22 +87,34 @@ ${synList || "(none)"}
 == GLOBAL USER INSTRUCTIONS (highest priority — obey these) ==
 ${customInstructions || "(none)"}`;
 
-    const result = await generateText({
-      model: gateway("google/gemini-3-flash-preview"),
-      system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Extract the line items from this quotation image and map them per the rules." },
-            {
-              type: "image",
-              image: `data:${data.mimeType};base64,${data.imageBase64}`,
-            } as never,
-          ],
-        },
-      ],
-    });
+    let result;
+    try {
+      result = await generateText({
+        model: gateway("google/gemini-3-flash-preview"),
+        system: systemPrompt,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Extract the line items from this quotation image and map them per the rules." },
+              {
+                type: "image",
+                image: `data:${data.mimeType};base64,${data.imageBase64}`,
+              } as never,
+            ],
+          },
+        ],
+      });
+    } catch (err: unknown) {
+      const e = err as { statusCode?: number; message?: string };
+      if (e?.statusCode === 402) {
+        throw new Error("AI credits exhausted for this workspace. Add credits in Settings → Plans & credits, or wait for the daily refresh.");
+      }
+      if (e?.statusCode === 429) {
+        throw new Error("AI rate limit reached. Please wait a moment and try again.");
+      }
+      throw new Error(e?.message || "AI processing failed. Please try again.");
+    }
 
     const text = result.text.trim();
     const jsonMatch = text.match(/\{[\s\S]*\}/);
