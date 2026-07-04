@@ -39,17 +39,18 @@ const googleErrorCode = (message: string): ProcessQuotationError["code"] => {
 export const processQuotation = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => Input.parse(data))
   .handler(async ({ data }): Promise<ProcessQuotationResult> => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) {
+    const googleKey = process.env.GOOGLE_AI_API_KEY;
+    if (!googleKey) {
       return {
         items: [],
         error: {
-          code: "AI_UNAVAILABLE",
-          message: "AI processing is not configured for this workspace.",
+          code: "GOOGLE_API_KEY_INVALID",
+          message: "GOOGLE_AI_API_KEY is not configured.",
           retryable: false,
         },
       };
     }
+
 
     const supabase = createClient(
       process.env.SUPABASE_URL!,
