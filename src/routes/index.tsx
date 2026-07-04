@@ -180,16 +180,21 @@ function Workspace() {
           process({ data: { imageBase64: base64, mimeType: file.type } }),
           uploadP,
         ]);
-        return { idx, items: res.items, storagePath };
+        return { idx, items: res.items, storagePath, error: res.error };
       }),
     );
 
     const newPaths: string[] = [];
     for (const r of results) {
       if (r.status === "fulfilled") {
-        succeeded += 1;
-        const { idx, items, storagePath } = r.value;
+        const { idx, items, storagePath, error } = r.value;
         if (storagePath) newPaths.push(storagePath);
+        if (error) {
+          toast.error(`One image failed: ${error.message}`);
+          setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+          continue;
+        }
+        succeeded += 1;
         const newRows: Row[] = items.map((it, rIdx) => ({
           id: `${batchStamp}-${idx}-${rIdx}`,
           extractedText: it.extractedText,

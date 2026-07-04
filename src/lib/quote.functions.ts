@@ -16,18 +16,20 @@ export type MatchedItem = {
   customerQty?: number | null;
 };
 
+export type ProcessQuotationError = {
+  code: "LOVABLE_CREDITS_EXHAUSTED" | "GOOGLE_RATE_LIMIT" | "GOOGLE_API_KEY_INVALID" | "AI_RATE_LIMIT" | "AI_UNAVAILABLE";
+  message: string;
+  retryable: boolean;
+};
+
 export type ProcessQuotationResult = {
   items: MatchedItem[];
-  error?: {
-    code: "LOVABLE_CREDITS_EXHAUSTED" | "GOOGLE_RATE_LIMIT" | "GOOGLE_API_KEY_INVALID" | "AI_RATE_LIMIT" | "AI_UNAVAILABLE";
-    message: string;
-    retryable: boolean;
-  };
+  error?: ProcessQuotationError;
 };
 
 const asAiError = (err: unknown) => err as { statusCode?: number; status?: number; message?: string };
 
-const googleErrorCode = (message: string): ProcessQuotationResult["error"]["code"] => {
+const googleErrorCode = (message: string): ProcessQuotationError["code"] => {
   const lower = message.toLowerCase();
   if (lower.includes("rate limit") || lower.includes("quota")) return "GOOGLE_RATE_LIMIT";
   if (lower.includes("api key") || lower.includes("invalid") || lower.includes("lacks access")) return "GOOGLE_API_KEY_INVALID";
