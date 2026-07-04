@@ -163,6 +163,7 @@ function Workspace() {
     setProgress({ done: 0, total: batch.length });
     const batchStamp = Date.now();
     let succeeded = 0;
+    let failed = 0;
     let extracted = 0;
 
     const results = await Promise.allSettled(
@@ -190,6 +191,7 @@ function Workspace() {
         const { idx, items, storagePath, error } = r.value;
         if (storagePath) newPaths.push(storagePath);
         if (error) {
+          failed += 1;
           toast.error(`One image failed: ${error.message}`);
           setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
           continue;
@@ -207,6 +209,7 @@ function Workspace() {
         setRows((rs) => [...rs, ...newRows]);
         setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
       } else {
+        failed += 1;
         console.error(r.reason);
         toast.error("One image failed: " + (r.reason as Error).message);
         setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
@@ -216,7 +219,11 @@ function Workspace() {
 
     setLoading(false);
     setProgress(null);
-    toast.success(`Extracted ${extracted} item${extracted === 1 ? "" : "s"} from ${succeeded} of ${batch.length} image${batch.length === 1 ? "" : "s"}.`);
+    if (succeeded > 0) {
+      toast.success(`Extracted ${extracted} item${extracted === 1 ? "" : "s"} from ${succeeded} of ${batch.length} image${batch.length === 1 ? "" : "s"}.`);
+    } else if (failed > 0) {
+      toast.error("No images were processed. Please wait a moment and try again.");
+    }
   };
 
   const clearAll = () => {
