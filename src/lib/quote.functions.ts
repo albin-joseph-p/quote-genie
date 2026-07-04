@@ -16,11 +16,40 @@ export type MatchedItem = {
   customerQty?: number | null;
 };
 
+export type ProcessQuotationError = {
+  code: "LOVABLE_CREDITS_EXHAUSTED" | "GOOGLE_RATE_LIMIT" | "GOOGLE_API_KEY_INVALID" | "AI_RATE_LIMIT" | "AI_UNAVAILABLE";
+  message: string;
+  retryable: boolean;
+};
+
+export type ProcessQuotationResult = {
+  items: MatchedItem[];
+  error?: ProcessQuotationError;
+};
+
+const asAiError = (err: unknown) => err as { statusCode?: number; status?: number; message?: string };
+
+const googleErrorCode = (message: string): ProcessQuotationError["code"] => {
+  const lower = message.toLowerCase();
+  if (lower.includes("rate limit") || lower.includes("quota")) return "GOOGLE_RATE_LIMIT";
+  if (lower.includes("api key") || lower.includes("invalid") || lower.includes("lacks access")) return "GOOGLE_API_KEY_INVALID";
+  return "AI_UNAVAILABLE";
+};
+
 export const processQuotation = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => Input.parse(data))
-  .handler(async ({ data }): Promise<{ items: MatchedItem[] }> => {
+  .handler(async ({ data }): Promise<ProcessQuotationResult> => {
     const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("Missing LOVABLE_API_KEY");
+    if (!apiKey) {
+      return {
+        items: [],
+        error: {
+          code: "AI_UNAVAILABLE",
+          message: "AI processing is not configured for this workspace.",
+          retryable: false,
+        },
+      };
+    }
 
     const supabase = createClient(
       process.env.SUPABASE_URL!,
@@ -108,12 +137,20 @@ ${customInstructions || "(none)"}`;
       });
       rawText = result.text;
     } catch (err: unknown) {
-      const e = err as { statusCode?: number; message?: string };
-      if (e?.statusCode === 402) {
+      const e = asAiError(err);
+      const status = e?.statusCode ?? e?.status;
+      if (status === 402) {
         // Fallback: user-supplied Google AI Studio key
         const googleKey = process.env.GOOGLE_AI_API_KEY;
         if (!googleKey) {
-          throw new Error("AI credits exhausted for this workspace, and no Google AI fallback key is configured.");
+          return {
+            items: [],
+            error: {
+              code: "LOVABLE_CREDITS_EXHAUSTED",
+              message: "AI credits are exhausted, and no Google AI fallback key is configured.",
+              retryable: false,
+            },
+          };
         }
         try {
           const { callGeminiAiStudio } = await import("./google-ai.server");
@@ -125,13 +162,39 @@ ${customInstructions || "(none)"}`;
             mimeType: data.mimeType,
           });
         } catch (gErr: unknown) {
-          const g = gErr as { message?: string };
-          throw new Error(`Both AI providers failed. Lovable: credits exhausted. Google: ${g?.message || "unknown error"}`);
+          const g = asAiError(gErr);
+          const message = g?.message || "Google AI fallback is unavailable.";
+          const code = googleErrorCode(message);
+          return {
+            items: [],
+            error: {
+              code,
+              message:
+                code === "GOOGLE_RATE_LIMIT"
+                  ? "Google AI fallback reached its rate limit or free-tier quota. Please try again in a minute."
+                  : message,
+              retryable: code === "GOOGLE_RATE_LIMIT" || code === "AI_UNAVAILABLE",
+            },
+          };
         }
-      } else if (e?.statusCode === 429) {
-        throw new Error("AI rate limit reached. Please wait a moment and try again.");
+      } else if (status === 429) {
+        return {
+          items: [],
+          error: {
+            code: "AI_RATE_LIMIT",
+            message: "AI rate limit reached. Please wait a moment and try again.",
+            retryable: true,
+          },
+        };
       } else {
-        throw new Error(e?.message || "AI processing failed. Please try again.");
+        return {
+          items: [],
+          error: {
+            code: "AI_UNAVAILABLE",
+            message: e?.message || "AI processing failed. Please try again.",
+            retryable: true,
+          },
+        };
       }
     }
 
