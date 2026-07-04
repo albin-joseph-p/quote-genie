@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { generateText } from "ai";
 import { createClient } from "@supabase/supabase-js";
-import { createLovableAiGatewayProvider } from "./ai-gateway.server";
+import { callGeminiAiStudio } from "./google-ai.server";
+
 
 const Input = z.object({
   imageBase64: z.string().min(1),
