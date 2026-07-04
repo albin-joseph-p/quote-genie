@@ -90,8 +90,6 @@ export const processQuotation = createServerFn({ method: "POST" })
     const catList = (categories ?? []).map((c) => c.name).join(", ");
     const customInstructions = (instructionsRow?.instructions ?? "").trim();
 
-    const gateway = createLovableAiGatewayProvider(apiKey);
-
     const systemPrompt = `You are an expert at reading customer quotation images (often handwritten or messy photos) for an electrical/sanitary/building-materials shop.
 
 Your job:
@@ -120,84 +118,27 @@ ${customInstructions || "(none)"}`;
     const userText = "Extract the line items from this quotation image and map them per the rules.";
     let rawText: string;
     try {
-      const result = await generateText({
-        model: gateway("google/gemini-3-flash-preview"),
-        system: systemPrompt,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: userText },
-              {
-                type: "image",
-                image: `data:${data.mimeType};base64,${data.imageBase64}`,
-              } as never,
-            ],
-          },
-        ],
+      rawText = await callGeminiAiStudio({
+        apiKey: googleKey,
+        systemPrompt,
+        userText,
+        imageBase64: data.imageBase64,
+        mimeType: data.mimeType,
       });
-      rawText = result.text;
     } catch (err: unknown) {
       const e = asAiError(err);
-      const status = e?.statusCode ?? e?.status;
-      if (status === 402) {
-        // Fallback: user-supplied Google AI Studio key
-        const googleKey = process.env.GOOGLE_AI_API_KEY;
-        if (!googleKey) {
-          return {
-            items: [],
-            error: {
-              code: "LOVABLE_CREDITS_EXHAUSTED",
-              message: "AI credits are exhausted, and no Google AI fallback key is configured.",
-              retryable: false,
-            },
-          };
-        }
-        try {
-          const { callGeminiAiStudio } = await import("./google-ai.server");
-          rawText = await callGeminiAiStudio({
-            apiKey: googleKey,
-            systemPrompt,
-            userText,
-            imageBase64: data.imageBase64,
-            mimeType: data.mimeType,
-          });
-        } catch (gErr: unknown) {
-          const g = asAiError(gErr);
-          const message = g?.message || "Google AI fallback is unavailable.";
-          const code = googleErrorCode(message);
-          return {
-            items: [],
-            error: {
-              code,
-              message:
-                code === "GOOGLE_RATE_LIMIT"
-                  ? "Google AI fallback reached its rate limit or free-tier quota. Please try again in a minute."
-                  : message,
-              retryable: code === "GOOGLE_RATE_LIMIT" || code === "AI_UNAVAILABLE",
-            },
-          };
-        }
-      } else if (status === 429) {
-        return {
-          items: [],
-          error: {
-            code: "AI_RATE_LIMIT",
-            message: "AI rate limit reached. Please wait a moment and try again.",
-            retryable: true,
-          },
-        };
-      } else {
-        return {
-          items: [],
-          error: {
-            code: "AI_UNAVAILABLE",
-            message: e?.message || "AI processing failed. Please try again.",
-            retryable: true,
-          },
-        };
-      }
+      const message = e?.message || "Google AI is unavailable.";
+      const code = googleErrorCode(message);
+      return {
+        items: [],
+        error: {
+          code,
+          message,
+          retryable: code === "GOOGLE_RATE_LIMIT" || code === "AI_UNAVAILABLE",
+        },
+      };
     }
+
 
     const text = rawText.trim();
     const jsonMatch = text.match(/\{[\s\S]*\}/);
