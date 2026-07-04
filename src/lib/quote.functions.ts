@@ -87,16 +87,17 @@ ${synList || "(none)"}
 == GLOBAL USER INSTRUCTIONS (highest priority — obey these) ==
 ${customInstructions || "(none)"}`;
 
-    let result;
+    const userText = "Extract the line items from this quotation image and map them per the rules.";
+    let rawText: string;
     try {
-      result = await generateText({
+      const result = await generateText({
         model: gateway("google/gemini-3-flash-preview"),
         system: systemPrompt,
         messages: [
           {
             role: "user",
             content: [
-              { type: "text", text: "Extract the line items from this quotation image and map them per the rules." },
+              { type: "text", text: userText },
               {
                 type: "image",
                 image: `data:${data.mimeType};base64,${data.imageBase64}`,
@@ -105,20 +106,39 @@ ${customInstructions || "(none)"}`;
           },
         ],
       });
+      rawText = result.text;
     } catch (err: unknown) {
       const e = err as { statusCode?: number; message?: string };
       if (e?.statusCode === 402) {
-        throw new Error("AI credits exhausted for this workspace. Add credits in Settings → Plans & credits, or wait for the daily refresh.");
-      }
-      if (e?.statusCode === 429) {
+        // Fallback: user-supplied Google AI Studio key
+        const googleKey = process.env.GOOGLE_AI_API_KEY;
+        if (!googleKey) {
+          throw new Error("AI credits exhausted for this workspace, and no Google AI fallback key is configured.");
+        }
+        try {
+          const { callGeminiAiStudio } = await import("./google-ai.server");
+          rawText = await callGeminiAiStudio({
+            apiKey: googleKey,
+            systemPrompt,
+            userText,
+            imageBase64: data.imageBase64,
+            mimeType: data.mimeType,
+          });
+        } catch (gErr: unknown) {
+          const g = gErr as { message?: string };
+          throw new Error(`Both AI providers failed. Lovable: credits exhausted. Google: ${g?.message || "unknown error"}`);
+        }
+      } else if (e?.statusCode === 429) {
         throw new Error("AI rate limit reached. Please wait a moment and try again.");
+      } else {
+        throw new Error(e?.message || "AI processing failed. Please try again.");
       }
-      throw new Error(e?.message || "AI processing failed. Please try again.");
     }
 
-    const text = result.text.trim();
+    const text = rawText.trim();
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return { items: [] };
+
 
     let parsed: { items?: MatchedItem[] };
     try {
