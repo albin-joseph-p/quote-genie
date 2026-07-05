@@ -495,10 +495,37 @@ function MasterPage() {
                   </tr>
                 );
               })}
-              {hiddenCount > 0 && (
+              {filtered.length > PAGE_SIZE && (
                 <tr className="border-t bg-muted/20">
-                  <td colSpan={5} className="p-3 text-center text-xs text-muted-foreground">
-                    Showing first {visible.length.toLocaleString()} of {filtered.length.toLocaleString()} items — use the search box above to find the rest.
+                  <td colSpan={5} className="p-3">
+                    <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
+                      <span>
+                        Showing {((page - 1) * PAGE_SIZE + 1).toLocaleString()}–
+                        {Math.min(page * PAGE_SIZE, filtered.length).toLocaleString()} of{" "}
+                        {filtered.length.toLocaleString()}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPage((p) => Math.max(1, p - 1))}
+                          disabled={page === 1}
+                        >
+                          Previous
+                        </Button>
+                        <span>
+                          Page {page} / {totalPages}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                          disabled={page >= totalPages}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               )}
