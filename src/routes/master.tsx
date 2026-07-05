@@ -312,9 +312,19 @@ function MasterPage() {
         (r.brand ?? "").toLowerCase().includes(q),
     );
   }, [all, search]);
-  const VISIBLE_CAP = 300;
-  const visible = useMemo(() => filtered.slice(0, VISIBLE_CAP), [filtered]);
-  const hiddenCount = filtered.length - visible.length;
+  const PAGE_SIZE = 100;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const visible = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page],
+  );
 
   const rowBeingDeleted = useMemo(
     () => (invQ.data ?? []).find((r) => r.item_code === deleteCode) ?? null,
