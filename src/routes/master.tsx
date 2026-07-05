@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Upload, Trash2, Download, Search, Pencil, Check, X, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -312,9 +312,19 @@ function MasterPage() {
         (r.brand ?? "").toLowerCase().includes(q),
     );
   }, [all, search]);
-  const VISIBLE_CAP = 300;
-  const visible = useMemo(() => filtered.slice(0, VISIBLE_CAP), [filtered]);
-  const hiddenCount = filtered.length - visible.length;
+  const PAGE_SIZE = 100;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const visible = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page],
+  );
 
   const rowBeingDeleted = useMemo(
     () => (invQ.data ?? []).find((r) => r.item_code === deleteCode) ?? null,
@@ -485,10 +495,37 @@ function MasterPage() {
                   </tr>
                 );
               })}
-              {hiddenCount > 0 && (
+              {filtered.length > PAGE_SIZE && (
                 <tr className="border-t bg-muted/20">
-                  <td colSpan={5} className="p-3 text-center text-xs text-muted-foreground">
-                    Showing first {visible.length.toLocaleString()} of {filtered.length.toLocaleString()} items — use the search box above to find the rest.
+                  <td colSpan={5} className="p-3">
+                    <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
+                      <span>
+                        Showing {((page - 1) * PAGE_SIZE + 1).toLocaleString()}–
+                        {Math.min(page * PAGE_SIZE, filtered.length).toLocaleString()} of{" "}
+                        {filtered.length.toLocaleString()}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPage((p) => Math.max(1, p - 1))}
+                          disabled={page === 1}
+                        >
+                          Previous
+                        </Button>
+                        <span>
+                          Page {page} / {totalPages}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                          disabled={page >= totalPages}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               )}
