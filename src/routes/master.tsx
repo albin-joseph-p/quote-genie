@@ -108,20 +108,17 @@ function MasterPage() {
     mutationFn: async (row: Inv) => {
       const { error } = await supabase.from("inventory").insert(row);
       if (error) throw error;
-      const cat = row.category?.trim();
-      if (cat) {
-        await supabase.from("categories").upsert({ name: cat }, { onConflict: "name" });
-      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inventory"] });
-      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["inventory", "taxonomy"] });
       toast.success("Item added");
       setAddOpen(false);
       setAddDraft({ item_code: "", item_name: "", category: "", brand: "" });
     },
     onError: (e) => toast.error((e as Error).message),
   });
+
 
   const delRow = useMutation({
     mutationFn: async (item_code: string) => {
@@ -130,6 +127,7 @@ function MasterPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inventory"] });
+      qc.invalidateQueries({ queryKey: ["inventory", "taxonomy"] });
       toast.success("Item deleted");
       setDeleteCode(null);
     },
@@ -227,13 +225,8 @@ function MasterPage() {
         if (error) throw error;
       }
 
-      const cats = Array.from(new Set(deduped.map((r) => r.category).filter((c): c is string => !!c)));
-      if (cats.length) {
-        await supabase.from("categories").upsert(cats.map((name) => ({ name })), { onConflict: "name" });
-      }
-
       qc.invalidateQueries({ queryKey: ["inventory"] });
-      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["inventory", "taxonomy"] });
       const withCat = deduped.filter((r) => r.category).length;
       toast.success(`Imported ${deduped.length} items (${withCat} with category)${deduped.length !== normalized.length ? ` — ${normalized.length - deduped.length} duplicates merged` : ""}`);
     } catch (e) {

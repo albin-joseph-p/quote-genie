@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Upload,
@@ -13,7 +13,7 @@ import {
   X,
   Check,
   ChevronsUpDown,
-  Plus,
+  
   Save,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -53,8 +53,6 @@ type Row = {
   aiItemCode: string | null; // original AI pick (for "edited" highlight)
 };
 
-type Category = { id: string; name: string };
-type Brand = { id: string; category_id: string; name: string };
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -111,28 +109,30 @@ function Workspace() {
       fetchAllRows<InventoryRow>("inventory", "item_code,item_name,category,brand"),
   });
 
-  const categoriesQ = useQuery({
-    queryKey: ["categories"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("categories").select("id,name").order("name");
-      if (error) throw error;
-      return (data ?? []) as Category[];
-    },
-  });
-  const brandsQ = useQuery({
-    queryKey: ["brands"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("brands").select("id,category_id,name").order("name");
-      if (error) throw error;
-      return (data ?? []) as Brand[];
-    },
-  });
-
   const inventory = inventoryQ.data ?? [];
-  const categories = categoriesQ.data ?? [];
-  const brands = brandsQ.data ?? [];
+
+  // Categories and brands are derived from Master Inventory so this workspace,
+  // the Categories tab, and the AI prompt always share one source of truth.
+  const { categories, brandsByCategory } = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const r of inventory) {
+      const cat = (r.category ?? "").trim();
+      if (!cat) continue;
+      if (!map.has(cat)) map.set(cat, new Set());
+      const brand = (r.brand ?? "").trim();
+      if (brand) map.get(cat)!.add(brand);
+    }
+    const cats = Array.from(map.keys()).sort((a, b) => a.localeCompare(b));
+    const brandsByCategory: Record<string, string[]> = {};
+    for (const [c, set] of map.entries()) {
+      brandsByCategory[c] = Array.from(set).sort((a, b) => a.localeCompare(b));
+    }
+    return { categories: cats, brandsByCategory };
+  }, [inventory]);
+
   const invByCode = useMemo(() => new Map(inventory.map((i) => [i.item_code, i])), [inventory]);
-  const catByName = useMemo(() => new Map(categories.map((c) => [c.name, c])), [categories]);
+  const categoryExists = useMemo(() => new Set(categories), [categories]);
+
 
   const MAX_IMAGES = 10;
 
@@ -442,12 +442,13 @@ function Workspace() {
               <CategoryBrandRow
                 key={catName}
                 categoryName={catName}
-                categoryId={catByName.get(catName)?.id}
+                known={categoryExists.has(catName)}
                 selectedBrand={brandByCategory[catName] ?? ""}
-                brands={brands.filter((b) => b.category_id === catByName.get(catName)?.id)}
+                brands={brandsByCategory[catName] ?? []}
                 onSelectBrand={(brand) => applyBrandToCategory(catName, brand)}
               />
             ))}
+
           </div>
         </Card>
       )}
@@ -578,39 +579,18 @@ function Workspace() {
 
 function CategoryBrandRow({
   categoryName,
-  categoryId,
+  known,
   selectedBrand,
   brands,
   onSelectBrand,
 }: {
   categoryName: string;
-  categoryId: string | undefined;
+  known: boolean;
   selectedBrand: string;
-  brands: Brand[];
+  brands: string[];
   onSelectBrand: (brand: string) => void;
 }) {
-  const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [newBrand, setNewBrand] = useState("");
-
-  const addBrand = async () => {
-    if (!categoryId || !newBrand.trim()) return;
-    const { error } = await supabase.from("brands").insert({ category_id: categoryId, name: newBrand.trim() });
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    setNewBrand("");
-    qc.invalidateQueries({ queryKey: ["brands"] });
-    toast.success("Brand added");
-  };
-
-  const removeBrand = async (id: string, name: string) => {
-    const { error } = await supabase.from("brands").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    if (selectedBrand === name) onSelectBrand("");
-    qc.invalidateQueries({ queryKey: ["brands"] });
-  };
 
   return (
     <div className="flex items-center gap-2 border rounded-md p-2 bg-background">
@@ -629,62 +609,33 @@ function CategoryBrandRow({
             <CommandInput placeholder="Search brands…" />
             <CommandList>
               <CommandEmpty>
-                {categoryId ? "No brands yet. Add one below." : "Category not defined in Categories tab."}
+                {known
+                  ? "No brands found for this category in Master Inventory."
+                  : "Category not present in Master Inventory."}
               </CommandEmpty>
               <CommandGroup>
                 {brands.map((b) => (
                   <CommandItem
-                    key={b.id}
-                    value={b.name}
+                    key={b}
+                    value={b}
                     onSelect={() => {
-                      onSelectBrand(b.name);
+                      onSelectBrand(b);
                       setOpen(false);
                     }}
-                    className="flex items-center justify-between"
                   >
-                    <span className="flex items-center gap-2">
-                      <Check className={cn("h-3 w-3", selectedBrand === b.name ? "opacity-100" : "opacity-0")} />
-                      {b.name}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeBrand(b.id, b.name);
-                      }}
-                      className="text-muted-foreground hover:text-destructive"
-                      title="Delete brand"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                    <Check className={cn("h-3 w-3 mr-2", selectedBrand === b ? "opacity-100" : "opacity-0")} />
+                    {b}
                   </CommandItem>
                 ))}
               </CommandGroup>
             </CommandList>
-            {categoryId && (
-              <div className="border-t p-2 flex gap-1">
-                <Input
-                  placeholder="Add brand…"
-                  value={newBrand}
-                  onChange={(e) => setNewBrand(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addBrand();
-                    }
-                  }}
-                  className="h-8"
-                />
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={addBrand}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
           </Command>
         </PopoverContent>
       </Popover>
     </div>
   );
 }
+
 
 function InventoryCombobox({
   inventory,
