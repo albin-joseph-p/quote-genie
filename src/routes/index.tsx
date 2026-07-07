@@ -53,8 +53,6 @@ type Row = {
   aiItemCode: string | null; // original AI pick (for "edited" highlight)
 };
 
-type Category = { id: string; name: string };
-type Brand = { id: string; category_id: string; name: string };
 
 export const Route = createFileRoute("/")({
   head: () => ({
