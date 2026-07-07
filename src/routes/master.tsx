@@ -159,32 +159,43 @@ function MasterPage() {
     throw new Error("Unsupported file format. Use CSV or XLSX.");
   };
 
+  const pick = (r: Record<string, unknown>, aliases: string[]): string => {
+    for (const a of aliases) {
+      const v = r[a];
+      if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim();
+    }
+    return "";
+  };
+
   const onFile = async (file: File) => {
     setUploading(true);
     try {
       const rows = await parseFile(file);
       if (!rows.length) throw new Error("Empty file");
       const first = rows[0];
-      const missing = REQUIRED.filter((c) => !(c in first));
-      if (missing.length) throw new Error(`Missing columns: ${missing.join(", ")}`);
+      const keys = Object.keys(first);
+      const hasCode = keys.some((k) => ["item_code", "code", "sku", "item"].includes(k));
+      const hasName = keys.some((k) => ["item_name", "name", "description", "product_name", "product"].includes(k));
+      if (!hasCode || !hasName) {
+        throw new Error(`Missing required columns. Found: ${keys.join(", ")}`);
+      }
 
       const normalized = rows
         .map((r) => ({
-          item_code: String(r.item_code ?? "").trim(),
-          item_name: String(r.item_name ?? "").trim(),
-          category: String(r.category ?? "").trim() || null,
-          brand: String(r.brand ?? "").trim(),
+          item_code: pick(r, ["item_code", "code", "sku", "item"]),
+          item_name: pick(r, ["item_name", "name", "description", "product_name", "product"]),
+          category: pick(r, ["category", "cat", "product_category", "item_category", "category_name"]) || null,
+          brand: pick(r, ["brand", "make", "manufacturer", "brand_name"]),
         }))
         .filter((r) => r.item_code && r.item_name);
 
       if (!normalized.length) throw new Error("No valid rows");
 
-      const seen = new Set<string>();
-      const deduped = normalized.filter((r) => {
-        if (seen.has(r.item_code)) return false;
-        seen.add(r.item_code);
-        return true;
-      });
+      // Keep the LAST occurrence per item_code so a later row with a filled
+      // category doesn't get shadowed by an earlier empty one.
+      const map = new Map<string, typeof normalized[number]>();
+      for (const r of normalized) map.set(r.item_code, r);
+      const deduped = Array.from(map.values());
 
       const del = await supabase.from("inventory").delete().neq("item_code", "__none__");
       if (del.error) throw del.error;
@@ -203,7 +214,8 @@ function MasterPage() {
 
       qc.invalidateQueries({ queryKey: ["inventory"] });
       qc.invalidateQueries({ queryKey: ["categories"] });
-      toast.success(`Imported ${deduped.length} items${deduped.length !== normalized.length ? ` (${normalized.length - deduped.length} duplicates skipped)` : ""}`);
+      const withCat = deduped.filter((r) => r.category).length;
+      toast.success(`Imported ${deduped.length} items (${withCat} with category)${deduped.length !== normalized.length ? ` — ${normalized.length - deduped.length} duplicates merged` : ""}`);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -211,6 +223,7 @@ function MasterPage() {
       if (fileRef.current) fileRef.current.value = "";
     }
   };
+
 
   const downloadTemplate = () => {
     const csv =
