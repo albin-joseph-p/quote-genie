@@ -127,6 +127,7 @@ function MasterPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inventory"] });
+      qc.invalidateQueries({ queryKey: ["inventory", "taxonomy"] });
       toast.success("Item deleted");
       setDeleteCode(null);
     },
