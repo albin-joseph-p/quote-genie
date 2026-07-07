@@ -444,12 +444,13 @@ function Workspace() {
               <CategoryBrandRow
                 key={catName}
                 categoryName={catName}
-                categoryId={catByName.get(catName)?.id}
+                known={categoryExists.has(catName)}
                 selectedBrand={brandByCategory[catName] ?? ""}
-                brands={brands.filter((b) => b.category_id === catByName.get(catName)?.id)}
+                brands={brandsByCategory[catName] ?? []}
                 onSelectBrand={(brand) => applyBrandToCategory(catName, brand)}
               />
             ))}
+
           </div>
         </Card>
       )}
