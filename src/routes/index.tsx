@@ -581,39 +581,18 @@ function Workspace() {
 
 function CategoryBrandRow({
   categoryName,
-  categoryId,
+  known,
   selectedBrand,
   brands,
   onSelectBrand,
 }: {
   categoryName: string;
-  categoryId: string | undefined;
+  known: boolean;
   selectedBrand: string;
-  brands: Brand[];
+  brands: string[];
   onSelectBrand: (brand: string) => void;
 }) {
-  const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [newBrand, setNewBrand] = useState("");
-
-  const addBrand = async () => {
-    if (!categoryId || !newBrand.trim()) return;
-    const { error } = await supabase.from("brands").insert({ category_id: categoryId, name: newBrand.trim() });
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    setNewBrand("");
-    qc.invalidateQueries({ queryKey: ["brands"] });
-    toast.success("Brand added");
-  };
-
-  const removeBrand = async (id: string, name: string) => {
-    const { error } = await supabase.from("brands").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    if (selectedBrand === name) onSelectBrand("");
-    qc.invalidateQueries({ queryKey: ["brands"] });
-  };
 
   return (
     <div className="flex items-center gap-2 border rounded-md p-2 bg-background">
@@ -632,62 +611,33 @@ function CategoryBrandRow({
             <CommandInput placeholder="Search brands…" />
             <CommandList>
               <CommandEmpty>
-                {categoryId ? "No brands yet. Add one below." : "Category not defined in Categories tab."}
+                {known
+                  ? "No brands found for this category in Master Inventory."
+                  : "Category not present in Master Inventory."}
               </CommandEmpty>
               <CommandGroup>
                 {brands.map((b) => (
                   <CommandItem
-                    key={b.id}
-                    value={b.name}
+                    key={b}
+                    value={b}
                     onSelect={() => {
-                      onSelectBrand(b.name);
+                      onSelectBrand(b);
                       setOpen(false);
                     }}
-                    className="flex items-center justify-between"
                   >
-                    <span className="flex items-center gap-2">
-                      <Check className={cn("h-3 w-3", selectedBrand === b.name ? "opacity-100" : "opacity-0")} />
-                      {b.name}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeBrand(b.id, b.name);
-                      }}
-                      className="text-muted-foreground hover:text-destructive"
-                      title="Delete brand"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                    <Check className={cn("h-3 w-3 mr-2", selectedBrand === b ? "opacity-100" : "opacity-0")} />
+                    {b}
                   </CommandItem>
                 ))}
               </CommandGroup>
             </CommandList>
-            {categoryId && (
-              <div className="border-t p-2 flex gap-1">
-                <Input
-                  placeholder="Add brand…"
-                  value={newBrand}
-                  onChange={(e) => setNewBrand(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addBrand();
-                    }
-                  }}
-                  className="h-8"
-                />
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={addBrand}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
           </Command>
         </PopoverContent>
       </Popover>
     </div>
   );
 }
+
 
 function InventoryCombobox({
   inventory,
