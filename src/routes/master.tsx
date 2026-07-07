@@ -225,13 +225,8 @@ function MasterPage() {
         if (error) throw error;
       }
 
-      const cats = Array.from(new Set(deduped.map((r) => r.category).filter((c): c is string => !!c)));
-      if (cats.length) {
-        await supabase.from("categories").upsert(cats.map((name) => ({ name })), { onConflict: "name" });
-      }
-
       qc.invalidateQueries({ queryKey: ["inventory"] });
-      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["inventory", "taxonomy"] });
       const withCat = deduped.filter((r) => r.category).length;
       toast.success(`Imported ${deduped.length} items (${withCat} with category)${deduped.length !== normalized.length ? ` — ${normalized.length - deduped.length} duplicates merged` : ""}`);
     } catch (e) {
