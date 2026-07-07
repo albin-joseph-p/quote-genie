@@ -160,7 +160,7 @@ ${customInstructions || "(none)"}`;
     } catch {
       return { items: [] };
     }
-    const allowedCats = new Set((categories ?? []).map((c) => c.name));
+    const allowedCats = new Set(categoryNames);
     const items = (parsed.items ?? []).map((i) => ({
       extractedText: String(i.extractedText ?? ""),
       itemCode: i.itemCode ? String(i.itemCode) : null,
