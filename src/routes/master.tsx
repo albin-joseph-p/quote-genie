@@ -108,20 +108,17 @@ function MasterPage() {
     mutationFn: async (row: Inv) => {
       const { error } = await supabase.from("inventory").insert(row);
       if (error) throw error;
-      const cat = row.category?.trim();
-      if (cat) {
-        await supabase.from("categories").upsert({ name: cat }, { onConflict: "name" });
-      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inventory"] });
-      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["inventory", "taxonomy"] });
       toast.success("Item added");
       setAddOpen(false);
       setAddDraft({ item_code: "", item_name: "", category: "", brand: "" });
     },
     onError: (e) => toast.error((e as Error).message),
   });
+
 
   const delRow = useMutation({
     mutationFn: async (item_code: string) => {
