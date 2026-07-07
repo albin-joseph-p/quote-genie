@@ -111,28 +111,30 @@ function Workspace() {
       fetchAllRows<InventoryRow>("inventory", "item_code,item_name,category,brand"),
   });
 
-  const categoriesQ = useQuery({
-    queryKey: ["categories"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("categories").select("id,name").order("name");
-      if (error) throw error;
-      return (data ?? []) as Category[];
-    },
-  });
-  const brandsQ = useQuery({
-    queryKey: ["brands"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("brands").select("id,category_id,name").order("name");
-      if (error) throw error;
-      return (data ?? []) as Brand[];
-    },
-  });
-
   const inventory = inventoryQ.data ?? [];
-  const categories = categoriesQ.data ?? [];
-  const brands = brandsQ.data ?? [];
+
+  // Categories and brands are derived from Master Inventory so this workspace,
+  // the Categories tab, and the AI prompt always share one source of truth.
+  const { categories, brandsByCategory } = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const r of inventory) {
+      const cat = (r.category ?? "").trim();
+      if (!cat) continue;
+      if (!map.has(cat)) map.set(cat, new Set());
+      const brand = (r.brand ?? "").trim();
+      if (brand) map.get(cat)!.add(brand);
+    }
+    const cats = Array.from(map.keys()).sort((a, b) => a.localeCompare(b));
+    const brandsByCategory: Record<string, string[]> = {};
+    for (const [c, set] of map.entries()) {
+      brandsByCategory[c] = Array.from(set).sort((a, b) => a.localeCompare(b));
+    }
+    return { categories: cats, brandsByCategory };
+  }, [inventory]);
+
   const invByCode = useMemo(() => new Map(inventory.map((i) => [i.item_code, i])), [inventory]);
-  const catByName = useMemo(() => new Map(categories.map((c) => [c.name, c])), [categories]);
+  const categoryExists = useMemo(() => new Set(categories), [categories]);
+
 
   const MAX_IMAGES = 10;
 
