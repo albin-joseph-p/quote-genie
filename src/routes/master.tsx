@@ -174,20 +174,40 @@ function MasterPage() {
       if (!rows.length) throw new Error("Empty file");
       const first = rows[0];
       const keys = Object.keys(first);
-      const hasCode = keys.some((k) => ["item_code", "code", "sku", "item"].includes(k));
-      const hasName = keys.some((k) => ["item_name", "name", "description", "product_name", "product"].includes(k));
-      if (!hasCode || !hasName) {
+
+      // Detect columns by substring so headers like "Product Category",
+      // "Item Cat.", "Category Type" all resolve to the right field.
+      const findKey = (test: (k: string) => boolean) => keys.find(test);
+      const codeKey =
+        findKey((k) => ["item_code", "code", "sku"].includes(k)) ??
+        findKey((k) => k.includes("code") || k === "sku" || k === "item");
+      const nameKey =
+        findKey((k) => ["item_name", "name", "description", "product_name", "product"].includes(k)) ??
+        findKey((k) => k.includes("name") || k.includes("desc") || k.includes("product"));
+      const catKey =
+        findKey((k) => ["category", "cat"].includes(k)) ??
+        findKey((k) => k.includes("categ") || k.includes("cat"));
+      const brandKey =
+        findKey((k) => ["brand", "make", "manufacturer"].includes(k)) ??
+        findKey((k) => k.includes("brand") || k.includes("make") || k.includes("manuf"));
+
+      if (!codeKey || !nameKey) {
         throw new Error(`Missing required columns. Found: ${keys.join(", ")}`);
       }
+      console.log("[master upload] column mapping:", { codeKey, nameKey, catKey, brandKey, allKeys: keys });
+
+      const val = (r: Record<string, unknown>, k: string | undefined) =>
+        k ? String(r[k] ?? "").trim() : "";
 
       const normalized = rows
         .map((r) => ({
-          item_code: pick(r, ["item_code", "code", "sku", "item"]),
-          item_name: pick(r, ["item_name", "name", "description", "product_name", "product"]),
-          category: pick(r, ["category", "cat", "product_category", "item_category", "category_name"]) || null,
-          brand: pick(r, ["brand", "make", "manufacturer", "brand_name"]),
+          item_code: val(r, codeKey),
+          item_name: val(r, nameKey),
+          category: val(r, catKey) || null,
+          brand: val(r, brandKey),
         }))
         .filter((r) => r.item_code && r.item_name);
+
 
       if (!normalized.length) throw new Error("No valid rows");
 
