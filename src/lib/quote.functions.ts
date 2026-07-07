@@ -74,10 +74,9 @@ export const processQuotation = createServerFn({ method: "POST" })
       return rows;
     };
 
-    const [inventory, { data: synonyms }, { data: categories }, { data: instructionsRow }] = await Promise.all([
+    const [inventory, { data: synonyms }, { data: instructionsRow }] = await Promise.all([
       fetchAllInventory(),
       supabase.from("synonyms").select("customer_term,item_code"),
-      supabase.from("categories").select("name").order("name"),
       supabase.from("ai_instructions").select("instructions").limit(1).maybeSingle(),
     ]);
 
@@ -87,8 +86,18 @@ export const processQuotation = createServerFn({ method: "POST" })
     const synList = (synonyms ?? [])
       .map((s) => `"${s.customer_term}" => ${s.item_code}`)
       .join("\n");
-    const catList = (categories ?? []).map((c) => c.name).join(", ");
+    // Derive allowed categories directly from inventory so the AI prompt is always
+    // aligned with Master Inventory (single source of truth, no drift).
+    const categoryNames = Array.from(
+      new Set(
+        (inventory ?? [])
+          .map((i) => (i.category ?? "").trim())
+          .filter((c) => c.length > 0),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
+    const catList = categoryNames.join(", ");
     const customInstructions = (instructionsRow?.instructions ?? "").trim();
+
 
     const systemPrompt = `You are an expert at reading customer quotation images (often handwritten or messy photos) for an electrical/sanitary/building-materials shop.
 
