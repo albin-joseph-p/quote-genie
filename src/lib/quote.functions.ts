@@ -102,12 +102,18 @@ export const processQuotation = createServerFn({ method: "POST" })
     const systemPrompt = `You are an expert at reading customer quotation images (often handwritten or messy photos) for an electrical/sanitary/building-materials shop.
 
 Your job:
-1. Extract each line item the customer is asking for from the image.
+1. Extract each line item the customer is asking for from the image EXACTLY as written, preserving every size, dimension, gauge, class, and unit token (e.g. "2 1/2", "1.5 sqmm", "B CLASS", "20mm", "3 core").
 2. Map each extracted line to an Item Code from the Master Inventory.
 3. Use the Synonym Map as HARD overrides — if a customer's text matches a synonym, you MUST use the mapped item_code.
-4. Otherwise pick the best fuzzy match from inventory. If nothing reasonably matches, set item_code to null.
-5. Classify each line into ONE of the ALLOWED CATEGORIES below. NEVER invent a category. If none fits, set category to null.
-6. Ignore prices, totals, headers, addresses, dates, signatures.
+4. Otherwise pick the best match from inventory using this STRICT priority:
+   a. SIZE / DIMENSION / GAUGE / CLASS tokens MUST match exactly. "2 1/2" ≠ "1 1/2", "2.5" ≠ "1.5", "20mm" ≠ "25mm", "B class" ≠ "A class". If no inventory item shares the exact size, set item_code to null — do NOT substitute a different size.
+   b. Product type / material must match (e.g. "GI pipe" must map to a GI pipe, not a PVC pipe).
+   c. Only after (a) and (b) are satisfied, use brand / other descriptors as tiebreakers.
+5. Normalize fractions before comparing: "2 1/2" = "2.5" = "2-1/2" = "2½". "1 1/2" = "1.5". Treat these as equal to their decimal equivalents when matching inventory names.
+6. If multiple inventory items match the exact size and type, pick the closest by name; if none match the exact size, RETURN null rather than a wrong-size item. A null match is better than a wrong-size match.
+7. Classify each line into ONE of the ALLOWED CATEGORIES below. NEVER invent a category. If none fits, set category to null.
+8. Extract customerQty as the integer quantity the customer wants (the number after the item, often after a dash or "x"). If unclear, set null.
+9. Ignore prices, totals, headers, addresses, dates, signatures.
 
 Return ONLY valid JSON, no prose, no markdown fences. Shape:
 {"items":[{"extractedText":"<as written by customer>","itemCode":"<code or null>","category":"<one of allowed or null>","customerQty":<number or null>}]}
@@ -123,6 +129,7 @@ ${synList || "(none)"}
 
 == GLOBAL USER INSTRUCTIONS (highest priority — obey these) ==
 ${customInstructions || "(none)"}`;
+
 
     const userText = "Extract the line items from this quotation image and map them per the rules.";
     let rawText: string;
