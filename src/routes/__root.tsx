@@ -1,17 +1,22 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
+  useNavigate,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
 
 function NotFoundComponent() {
   return (
@@ -68,7 +73,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -107,27 +115,107 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen flex flex-col">
-        <header className="border-b bg-card">
-          <div className="mx-auto max-w-7xl px-6 h-16 flex items-center gap-6">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold">O</div>
-              <span className="font-semibold tracking-tight">Orion Sales Corporation</span>
-            </Link>
-            <nav className="flex items-center gap-1 ml-4">
-              <NavTab to="/" label="Quotation Workspace" />
-              <NavTab to="/history" label="History" />
-              <NavTab to="/categories" label="Categories" />
-              <NavTab to="/synonyms" label="Synonyms" />
-              <NavTab to="/master" label="Master Inventory" />
-            </nav>
-          </div>
-        </header>
-        <main className="flex-1">
-          <Outlet />
-        </main>
-      </div>
+      <AuthStateBridge />
+      <AppShell />
       <Toaster richColors position="top-right" />
     </QueryClientProvider>
+  );
+}
+
+function AuthStateBridge() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+      router.invalidate();
+      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+    });
+    return () => data.subscription.unsubscribe();
+  }, [router, queryClient]);
+  return null;
+}
+
+function AppShell() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isAuthPage =
+    pathname === "/auth" || pathname.startsWith("/.lovable/oauth");
+
+  if (isAuthPage) {
+    return (
+      <div className="min-h-screen">
+        <Outlet />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <header className="border-b bg-card">
+        <div className="mx-auto max-w-7xl px-6 h-16 flex items-center gap-6">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold">O</div>
+            <span className="font-semibold tracking-tight">Orion Sales Corporation</span>
+          </Link>
+          <nav className="flex items-center gap-1 ml-4">
+            <NavTab to="/" label="Quotation Workspace" />
+            <NavTab to="/history" label="History" />
+            <NavTab to="/categories" label="Categories" />
+            <NavTab to="/synonyms" label="Synonyms" />
+            <NavTab to="/master" label="Master Inventory" />
+          </nav>
+          <div className="ml-auto">
+            <AccountMenu />
+          </div>
+        </div>
+      </header>
+      <main className="flex-1">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+
+function AccountMenu() {
+  const [email, setEmail] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    let alive = true;
+    supabase.auth.getUser().then(({ data }) => {
+      if (alive) setEmail(data.user?.email ?? null);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setEmail(session?.user?.email ?? null);
+    });
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  async function signOut() {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  }
+
+  if (!email) {
+    return (
+      <Link to="/auth" className="text-sm text-primary underline">
+        Sign in
+      </Link>
+    );
+  }
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-xs text-muted-foreground hidden sm:inline">{email}</span>
+      <Button variant="ghost" size="sm" onClick={signOut}>
+        <LogOut className="h-4 w-4 mr-1" />
+        Sign out
+      </Button>
+    </div>
   );
 }

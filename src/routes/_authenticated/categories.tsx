@@ -6,7 +6,7 @@ import { ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { fetchAllRows } from "@/lib/fetch-all";
 
-export const Route = createFileRoute("/categories")({
+export const Route = createFileRoute("/_authenticated/categories")({
   head: () => ({
     meta: [
       { title: "Categories & Brands — Orion Sales Corporation" },

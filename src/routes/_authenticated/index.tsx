@@ -54,7 +54,7 @@ type Row = {
 };
 
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
       { title: "Quotation Workspace — Orion Sales Corporation" },
