@@ -37,8 +37,9 @@ const googleErrorCode = (message: string): ProcessQuotationError["code"] => {
 };
 
 export const processQuotation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => Input.parse(data))
-  .handler(async ({ data }): Promise<ProcessQuotationResult> => {
+  .handler(async ({ data, context }): Promise<ProcessQuotationResult> => {
     const googleKey = process.env.GOOGLE_AI_API_KEY;
     if (!googleKey) {
       return {
@@ -52,11 +53,7 @@ export const processQuotation = createServerFn({ method: "POST" })
     }
 
 
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_PUBLISHABLE_KEY!,
-      { auth: { persistSession: false, autoRefreshToken: false, storage: undefined } },
-    );
+    const supabase = context.supabase;
 
     const fetchAllInventory = async () => {
       const rows: { item_code: string; item_name: string; category: string | null; brand: string | null }[] = [];
