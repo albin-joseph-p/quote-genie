@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetch-all";
 
-export const Route = createFileRoute("/synonyms")({
+export const Route = createFileRoute("/_authenticated/synonyms")({
   head: () => ({
     meta: [
       { title: "Synonyms — Orion Sales Corporation" },

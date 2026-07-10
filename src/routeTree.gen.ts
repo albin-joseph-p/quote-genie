@@ -9,122 +9,128 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SynonymsRouteImport } from './routes/synonyms'
-import { Route as MasterRouteImport } from './routes/master'
-import { Route as HistoryRouteImport } from './routes/history'
-import { Route as CategoriesRouteImport } from './routes/categories'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedSynonymsRouteImport } from './routes/_authenticated/synonyms'
+import { Route as AuthenticatedMasterRouteImport } from './routes/_authenticated/master'
+import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
+import { Route as AuthenticatedCategoriesRouteImport } from './routes/_authenticated/categories'
 
-const SynonymsRoute = SynonymsRouteImport.update({
-  id: '/synonyms',
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
+  id: '/_authenticated/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedSynonymsRoute = AuthenticatedSynonymsRouteImport.update({
+  id: '/_authenticated/synonyms',
   path: '/synonyms',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MasterRoute = MasterRouteImport.update({
-  id: '/master',
+const AuthenticatedMasterRoute = AuthenticatedMasterRouteImport.update({
+  id: '/_authenticated/master',
   path: '/master',
   getParentRoute: () => rootRouteImport,
 } as any)
-const HistoryRoute = HistoryRouteImport.update({
-  id: '/history',
+const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
+  id: '/_authenticated/history',
   path: '/history',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CategoriesRoute = CategoriesRouteImport.update({
-  id: '/categories',
+const AuthenticatedCategoriesRoute = AuthenticatedCategoriesRouteImport.update({
+  id: '/_authenticated/categories',
   path: '/categories',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/categories': typeof CategoriesRoute
-  '/history': typeof HistoryRoute
-  '/master': typeof MasterRoute
-  '/synonyms': typeof SynonymsRoute
+  '/categories': typeof AuthenticatedCategoriesRoute
+  '/history': typeof AuthenticatedHistoryRoute
+  '/master': typeof AuthenticatedMasterRoute
+  '/synonyms': typeof AuthenticatedSynonymsRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/categories': typeof CategoriesRoute
-  '/history': typeof HistoryRoute
-  '/master': typeof MasterRoute
-  '/synonyms': typeof SynonymsRoute
+  '/categories': typeof AuthenticatedCategoriesRoute
+  '/history': typeof AuthenticatedHistoryRoute
+  '/master': typeof AuthenticatedMasterRoute
+  '/synonyms': typeof AuthenticatedSynonymsRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/categories': typeof CategoriesRoute
-  '/history': typeof HistoryRoute
-  '/master': typeof MasterRoute
-  '/synonyms': typeof SynonymsRoute
+  '/_authenticated/categories': typeof AuthenticatedCategoriesRoute
+  '/_authenticated/history': typeof AuthenticatedHistoryRoute
+  '/_authenticated/master': typeof AuthenticatedMasterRoute
+  '/_authenticated/synonyms': typeof AuthenticatedSynonymsRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/categories' | '/history' | '/master' | '/synonyms'
+  fullPaths: '/categories' | '/history' | '/master' | '/synonyms' | '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/categories' | '/history' | '/master' | '/synonyms'
-  id: '__root__' | '/' | '/categories' | '/history' | '/master' | '/synonyms'
+  to: '/categories' | '/history' | '/master' | '/synonyms' | '/'
+  id:
+    | '__root__'
+    | '/_authenticated/categories'
+    | '/_authenticated/history'
+    | '/_authenticated/master'
+    | '/_authenticated/synonyms'
+    | '/_authenticated/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  CategoriesRoute: typeof CategoriesRoute
-  HistoryRoute: typeof HistoryRoute
-  MasterRoute: typeof MasterRoute
-  SynonymsRoute: typeof SynonymsRoute
+  AuthenticatedCategoriesRoute: typeof AuthenticatedCategoriesRoute
+  AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
+  AuthenticatedMasterRoute: typeof AuthenticatedMasterRoute
+  AuthenticatedSynonymsRoute: typeof AuthenticatedSynonymsRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/synonyms': {
-      id: '/synonyms'
-      path: '/synonyms'
-      fullPath: '/synonyms'
-      preLoaderRoute: typeof SynonymsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/master': {
-      id: '/master'
-      path: '/master'
-      fullPath: '/master'
-      preLoaderRoute: typeof MasterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/history': {
-      id: '/history'
-      path: '/history'
-      fullPath: '/history'
-      preLoaderRoute: typeof HistoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/categories': {
-      id: '/categories'
-      path: '/categories'
-      fullPath: '/categories'
-      preLoaderRoute: typeof CategoriesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/synonyms': {
+      id: '/_authenticated/synonyms'
+      path: '/synonyms'
+      fullPath: '/synonyms'
+      preLoaderRoute: typeof AuthenticatedSynonymsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/master': {
+      id: '/_authenticated/master'
+      path: '/master'
+      fullPath: '/master'
+      preLoaderRoute: typeof AuthenticatedMasterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/history': {
+      id: '/_authenticated/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof AuthenticatedHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/categories': {
+      id: '/_authenticated/categories'
+      path: '/categories'
+      fullPath: '/categories'
+      preLoaderRoute: typeof AuthenticatedCategoriesRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  CategoriesRoute: CategoriesRoute,
-  HistoryRoute: HistoryRoute,
-  MasterRoute: MasterRoute,
-  SynonymsRoute: SynonymsRoute,
+  AuthenticatedCategoriesRoute: AuthenticatedCategoriesRoute,
+  AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
+  AuthenticatedMasterRoute: AuthenticatedMasterRoute,
+  AuthenticatedSynonymsRoute: AuthenticatedSynonymsRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

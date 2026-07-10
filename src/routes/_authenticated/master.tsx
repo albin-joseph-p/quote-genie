@@ -27,7 +27,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetch-all";
 
-export const Route = createFileRoute("/master")({
+export const Route = createFileRoute("/_authenticated/master")({
   head: () => ({
     meta: [
       { title: "Master Inventory — Orion Sales Corporation" },
