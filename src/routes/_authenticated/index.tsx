@@ -304,6 +304,27 @@ function Workspace() {
     return out;
   };
 
+  // Extract meaningful alphabetic "product-type" tokens (e.g. "plate", "modi",
+  // "pipe", "socket") from the customer's extracted text. Strips digits, units,
+  // and common noise so we can require the candidate item name to share at
+  // least one of these — this preserves product-type intent when the user
+  // switches brand (a "modi plate" must not become a "1 WAY 20A switch").
+  const STOP_TOKENS = new Set([
+    "the","and","for","with","pcs","pc","nos","no","qty","set","sets",
+    "mm","cm","inch","in","sqmm","sq","core","class","way","ways","pin","pins",
+    "amp","amps","watt","watts","volt","volts","kw","hp","meter","meters","mtr","mtrs",
+    "size","type","new","old","big","small","large",
+  ]);
+  const typeTokens = (text: string): Set<string> => {
+    const out = new Set<string>();
+    for (const raw of text.toLowerCase().split(/[^a-z]+/)) {
+      if (raw.length < 3) continue;
+      if (STOP_TOKENS.has(raw)) continue;
+      out.add(raw);
+    }
+    return out;
+  };
+
   // Score with SIZE as a hard gate; token overlap only ranks size-compatible candidates.
   const score = (extracted: string, itemName: string) => {
     const A = extracted.toLowerCase();
@@ -331,12 +352,29 @@ function Workspace() {
     setRows((rs) =>
       rs.map((r) => {
         if (r.category !== categoryName) return r;
-        // Inventory.category is often unpopulated, so match by brand only.
-        // If inventory rows do have a category set, prefer those that also match.
         const brandMatches = inventory.filter((i) => i.brand === brandName);
         if (brandMatches.length === 0) return { ...r, itemCode: null };
         const withCat = brandMatches.filter((i) => (i.category ?? "") === categoryName);
-        const candidates = withCat.length > 0 ? withCat : brandMatches;
+        let candidates = withCat.length > 0 ? withCat : brandMatches;
+        // Preserve product-type intent: candidate must share ≥1 non-numeric
+        // token with the customer's extracted text (e.g. "plate"). Also allow
+        // the previously matched item's tokens so an AI match on "modi plate"
+        // that resolved to "PLATE 1M ANCHOR GINA" still contributes "plate".
+        const intent = typeTokens(r.extractedText);
+        const prevInv = r.itemCode ? invByCode.get(r.itemCode) : undefined;
+        if (prevInv) for (const t of typeTokens(prevInv.item_name)) intent.add(t);
+        // Drop the newly chosen brand's own tokens so "elleys"/"gama" can't
+        // stand in for a real product-type match.
+        for (const t of typeTokens(brandName)) intent.delete(t);
+        if (intent.size > 0) {
+          const filtered = candidates.filter((c) => {
+            const ct = typeTokens(c.item_name);
+            for (const t of intent) if (ct.has(t)) return true;
+            return false;
+          });
+          candidates = filtered;
+        }
+        if (candidates.length === 0) return { ...r, itemCode: null };
         let best: InventoryRow | null = null;
         let bestScore = 0;
         for (const c of candidates) {
@@ -346,8 +384,8 @@ function Workspace() {
             best = c;
           }
         }
-        // A wrong-size match is worse than no match — leave itemCode null so
-        // the row is flagged and the user can override manually.
+        // A wrong-size / wrong-type match is worse than no match — leave
+        // itemCode null so the row is flagged and the user can override.
         return { ...r, itemCode: best ? best.item_code : null };
       }),
     );
