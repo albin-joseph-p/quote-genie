@@ -268,16 +268,62 @@ function Workspace() {
     return Array.from(set).sort();
   }, [rows]);
 
-  // Fuzzy similarity for re-matching within (category, brand)
-  const score = (a: string, b: string) => {
-    const A = a.toLowerCase();
-    const B = b.toLowerCase();
-    if (B.includes(A) || A.includes(B)) return 100;
+  // Extract size / dimension tokens (numbers, fractions, decimals) normalized
+  // to decimal strings, so "2 1/2", "2-1/2", "2.5", "2½" all compare equal.
+  const extractSizes = (text: string): Set<string> => {
+    const s = text
+      .toLowerCase()
+      .replace(/½/g, " 1/2")
+      .replace(/¼/g, " 1/4")
+      .replace(/¾/g, " 3/4")
+      .replace(/⅓/g, " 1/3")
+      .replace(/⅔/g, " 2/3");
+    const out = new Set<string>();
+    // whole + fraction, e.g. "2 1/2" or "2-1/2"
+    const mixed = s.matchAll(/(\d+)[\s-]+(\d+)\s*\/\s*(\d+)/g);
+    for (const m of mixed) {
+      const v = Number(m[1]) + Number(m[2]) / Number(m[3]);
+      out.add(v.toFixed(2).replace(/\.?0+$/, ""));
+    }
+    // bare fractions
+    const frac = s.replace(/(\d+)[\s-]+(\d+)\s*\/\s*(\d+)/g, " ").matchAll(/(\d+)\s*\/\s*(\d+)/g);
+    for (const m of frac) {
+      const v = Number(m[1]) / Number(m[2]);
+      out.add(v.toFixed(2).replace(/\.?0+$/, ""));
+    }
+    // decimals and integers (avoid re-capturing fraction parts)
+    const cleaned = s
+      .replace(/(\d+)[\s-]+(\d+)\s*\/\s*(\d+)/g, " ")
+      .replace(/(\d+)\s*\/\s*(\d+)/g, " ");
+    const nums = cleaned.matchAll(/\d+(?:\.\d+)?/g);
+    for (const m of nums) {
+      const v = Number(m[0]);
+      if (!Number.isFinite(v)) continue;
+      out.add(v.toFixed(2).replace(/\.?0+$/, ""));
+    }
+    return out;
+  };
+
+  // Score with SIZE as a hard gate; token overlap only ranks size-compatible candidates.
+  const score = (extracted: string, itemName: string) => {
+    const A = extracted.toLowerCase();
+    const B = itemName.toLowerCase();
+    const sizesA = extractSizes(A);
+    const sizesB = extractSizes(B);
+    // If the extracted text has size tokens, the inventory name MUST share at least one.
+    if (sizesA.size > 0) {
+      let anyMatch = false;
+      for (const s of sizesA) if (sizesB.has(s)) { anyMatch = true; break; }
+      if (!anyMatch) return -1; // hard reject: wrong size
+    }
+    let s = 0;
+    if (B.includes(A) || A.includes(B)) s += 50;
     const tokensA = new Set(A.split(/\W+/).filter(Boolean));
     const tokensB = new Set(B.split(/\W+/).filter(Boolean));
-    let hit = 0;
-    for (const t of tokensA) if (tokensB.has(t)) hit++;
-    return hit;
+    for (const t of tokensA) if (tokensB.has(t)) s += 1;
+    // Reward exact size overlap count
+    for (const sz of sizesA) if (sizesB.has(sz)) s += 10;
+    return s;
   };
 
   const applyBrandToCategory = (categoryName: string, brandName: string) => {
@@ -288,11 +334,11 @@ function Workspace() {
         // Inventory.category is often unpopulated, so match by brand only.
         // If inventory rows do have a category set, prefer those that also match.
         const brandMatches = inventory.filter((i) => i.brand === brandName);
-        if (brandMatches.length === 0) return r;
+        if (brandMatches.length === 0) return { ...r, itemCode: null };
         const withCat = brandMatches.filter((i) => (i.category ?? "") === categoryName);
         const candidates = withCat.length > 0 ? withCat : brandMatches;
-        let best = candidates[0];
-        let bestScore = -1;
+        let best: InventoryRow | null = null;
+        let bestScore = 0;
         for (const c of candidates) {
           const s = score(r.extractedText, c.item_name);
           if (s > bestScore) {
@@ -300,7 +346,9 @@ function Workspace() {
             best = c;
           }
         }
-        return { ...r, itemCode: best.item_code };
+        // A wrong-size match is worse than no match — leave itemCode null so
+        // the row is flagged and the user can override manually.
+        return { ...r, itemCode: best ? best.item_code : null };
       }),
     );
   };
