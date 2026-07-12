@@ -70,7 +70,7 @@ function MasterPage() {
   const invQ = useQuery({
     queryKey: ["inventory"],
     queryFn: async () =>
-      fetchAllRows<Inv>("inventory", "item_code,item_name,category,brand"),
+      fetchAllRows<Inv>("inventory", "item_code,item_name,category,brand,remarks"),
   });
 
 
