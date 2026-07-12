@@ -116,7 +116,7 @@ function MasterPage() {
       qc.invalidateQueries({ queryKey: ["inventory", "taxonomy"] });
       toast.success("Item added");
       setAddOpen(false);
-      setAddDraft({ item_code: "", item_name: "", category: "", brand: "" });
+      setAddDraft({ item_code: "", item_name: "", category: "", brand: "", remarks: "" });
     },
     onError: (e) => toast.error((e as Error).message),
   });
