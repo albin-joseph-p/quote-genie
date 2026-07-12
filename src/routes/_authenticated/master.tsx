@@ -242,10 +242,10 @@ function MasterPage() {
 
   const downloadTemplate = () => {
     const csv =
-      "item_code,item_name,category,brand\n" +
-      "ELEC-FIN-15,1.5 sqmm Wire (90m),Wires,Finolex\n" +
-      "ELEC-POL-15,1.5 sqmm Wire (90m),Wires,Polycab\n" +
-      "SAN-JAQ-BSN,Basin Mixer,Plumbing,Jaquar\n";
+      "item_code,item_name,category,brand,remarks\n" +
+      "ELEC-FIN-15,1.5 sqmm Wire (90m),Wires,Finolex,\n" +
+      "ELEC-POL-15,1.5 sqmm Wire (90m),Wires,Polycab,\n" +
+      "SAN-JAQ-BSN,Basin Mixer,Plumbing,Jaquar,\n";
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -253,6 +253,37 @@ function MasterPage() {
     a.download = "master-inventory-template.csv";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const csvEscape = (v: string) => {
+    if (/[",\n\r]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+    return v;
+  };
+
+  const exportCsv = () => {
+    const rows = invQ.data ?? [];
+    if (rows.length === 0) {
+      toast.error("No inventory to export");
+      return;
+    }
+    const header = ["item_code", "item_name", "category", "brand", "remarks"];
+    const body = rows
+      .map((r) =>
+        [r.item_code, r.item_name, r.category ?? "", r.brand ?? "", r.remarks ?? ""]
+          .map((v) => csvEscape(String(v)))
+          .join(","),
+      )
+      .join("\n");
+    const csv = header.join(",") + "\n" + body + "\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.download = `master-inventory-${stamp}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${rows.length} items`);
   };
 
   const startEdit = (r: Inv) => {
