@@ -88,7 +88,7 @@ function MasterPage() {
   const updateRow = useMutation({
     mutationFn: async (payload: {
       item_code: string;
-      patch: { item_name: string; category: string | null; brand: string };
+      patch: { item_name: string; category: string | null; brand: string; remarks: string };
     }) => {
       const { error } = await supabase
         .from("inventory")
