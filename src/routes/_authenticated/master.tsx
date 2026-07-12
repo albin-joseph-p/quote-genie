@@ -526,6 +526,18 @@ function MasterPage() {
                         r.brand || <span className="text-muted-foreground">—</span>
                       )}
                     </td>
+                    <td className="p-3">
+                      {isEditing ? (
+                        <Input
+                          value={draft!.remarks}
+                          onChange={(e) => setDraft({ ...draft!, remarks: e.target.value })}
+                          className="h-8"
+                          placeholder="Add notes…"
+                        />
+                      ) : (
+                        r.remarks || <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
                     <td className="p-3 text-right">
                       <div className="inline-flex gap-1">
                         {isEditing ? (
