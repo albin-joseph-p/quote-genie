@@ -190,11 +190,14 @@ function MasterPage() {
       const brandKey =
         findKey((k) => ["brand", "make", "manufacturer"].includes(k)) ??
         findKey((k) => k.includes("brand") || k.includes("make") || k.includes("manuf"));
+      const remarksKey =
+        findKey((k) => ["remarks", "remark", "notes", "note", "comment", "comments"].includes(k)) ??
+        findKey((k) => k.includes("remark") || k.includes("note") || k.includes("comment"));
 
       if (!codeKey || !nameKey) {
         throw new Error(`Missing required columns. Found: ${keys.join(", ")}`);
       }
-      console.log("[master upload] column mapping:", { codeKey, nameKey, catKey, brandKey, allKeys: keys });
+      console.log("[master upload] column mapping:", { codeKey, nameKey, catKey, brandKey, remarksKey, allKeys: keys });
 
       const val = (r: Record<string, unknown>, k: string | undefined) =>
         k ? String(r[k] ?? "").trim() : "";
@@ -205,6 +208,7 @@ function MasterPage() {
           item_name: val(r, nameKey),
           category: val(r, catKey) || null,
           brand: val(r, brandKey),
+          remarks: val(r, remarksKey),
         }))
         .filter((r) => r.item_code && r.item_name);
 
