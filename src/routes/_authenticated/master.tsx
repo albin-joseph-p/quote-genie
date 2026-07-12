@@ -580,7 +580,7 @@ function MasterPage() {
               })}
               {filtered.length > PAGE_SIZE && (
                 <tr className="border-t bg-muted/20">
-                  <td colSpan={5} className="p-3">
+                  <td colSpan={6} className="p-3">
                     <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
                       <span>
                         Showing {((page - 1) * PAGE_SIZE + 1).toLocaleString()}–
