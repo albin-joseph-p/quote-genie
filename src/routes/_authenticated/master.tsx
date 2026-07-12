@@ -285,9 +285,11 @@ function MasterPage() {
     const name = draft.item_name.trim();
     const cat = draft.category.trim();
     const brand = draft.brand.trim();
+    const remarks = draft.remarks.trim();
     if (name !== editingOriginal.item_name) out.push({ field: "Name", old: editingOriginal.item_name, next: name });
     if (cat !== (editingOriginal.category ?? "")) out.push({ field: "Category", old: editingOriginal.category ?? "—", next: cat || "—" });
     if (brand !== (editingOriginal.brand ?? "")) out.push({ field: "Brand", old: editingOriginal.brand || "—", next: brand || "—" });
+    if (remarks !== (editingOriginal.remarks ?? "")) out.push({ field: "Remarks", old: editingOriginal.remarks || "—", next: remarks || "—" });
     return out;
   }, [editingOriginal, draft]);
 
@@ -306,6 +308,7 @@ function MasterPage() {
         item_name: draft.item_name.trim(),
         category: draft.category.trim() || null,
         brand: draft.brand.trim(),
+        remarks: draft.remarks.trim(),
       },
     });
   };
@@ -322,6 +325,7 @@ function MasterPage() {
       item_name,
       category: addDraft.category.trim() || null,
       brand: addDraft.brand.trim(),
+      remarks: addDraft.remarks.trim(),
     });
   };
 
