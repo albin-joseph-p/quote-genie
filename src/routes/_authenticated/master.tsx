@@ -426,6 +426,9 @@ function MasterPage() {
           <Button variant="outline" onClick={downloadTemplate}>
             <Download className="h-4 w-4 mr-2" /> Template
           </Button>
+          <Button variant="outline" onClick={exportCsv} disabled={all.length === 0}>
+            <FileDown className="h-4 w-4 mr-2" /> Export CSV
+          </Button>
           <Button variant="outline" onClick={() => setAddOpen(true)}>
             <Plus className="h-4 w-4 mr-2" /> Add Item
           </Button>
