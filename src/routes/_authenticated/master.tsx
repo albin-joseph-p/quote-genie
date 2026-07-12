@@ -42,9 +42,10 @@ type Inv = {
   item_name: string;
   category: string | null;
   brand: string;
+  remarks: string;
 };
 
-type Draft = { item_name: string; category: string; brand: string };
+type Draft = { item_name: string; category: string; brand: string; remarks: string };
 
 const REQUIRED = ["item_code", "item_name"];
 
