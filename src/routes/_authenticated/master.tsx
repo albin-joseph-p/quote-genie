@@ -701,6 +701,14 @@ function MasterPage() {
                 placeholder="e.g. Finolex"
               />
             </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Remarks</label>
+              <Input
+                value={addDraft.remarks}
+                onChange={(e) => setAddDraft({ ...addDraft, remarks: e.target.value })}
+                placeholder="Optional notes"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)} disabled={addRow.isPending}>
