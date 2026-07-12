@@ -476,13 +476,14 @@ function MasterPage() {
                 <th className="text-left p-3 font-medium">Item Name</th>
                 <th className="text-left p-3 font-medium w-40">Category</th>
                 <th className="text-left p-3 font-medium w-40">Brand</th>
+                <th className="text-left p-3 font-medium w-56">Remarks</th>
                 <th className="text-right p-3 font-medium w-28">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                  <td colSpan={6} className="p-6 text-center text-muted-foreground">
                     {all.length === 0 ? "No inventory loaded." : "No items match your search."}
                   </td>
                 </tr>
