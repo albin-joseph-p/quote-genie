@@ -86,6 +86,7 @@ export type Database = {
           created_at: string
           item_code: string
           item_name: string
+          remarks: string
         }
         Insert: {
           brand?: string
@@ -93,6 +94,7 @@ export type Database = {
           created_at?: string
           item_code: string
           item_name: string
+          remarks?: string
         }
         Update: {
           brand?: string
@@ -100,6 +102,7 @@ export type Database = {
           created_at?: string
           item_code?: string
           item_name?: string
+          remarks?: string
         }
         Relationships: []
       }
