@@ -58,11 +58,12 @@ function MasterPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [addDraft, setAddDraft] = useState<{ item_code: string; item_name: string; category: string; brand: string }>({
+  const [addDraft, setAddDraft] = useState<{ item_code: string; item_name: string; category: string; brand: string; remarks: string }>({
     item_code: "",
     item_name: "",
     category: "",
     brand: "",
+    remarks: "",
   });
   const [deleteCode, setDeleteCode] = useState<string | null>(null);
 
