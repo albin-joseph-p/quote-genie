@@ -445,7 +445,7 @@ function MasterPage() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Required: <code>item_code, item_name</code>. Optional: <code>category, brand</code> (drive the brand selector on the workspace).
+          Required: <code>item_code, item_name</code>. Optional: <code>category, brand, remarks</code>.
         </p>
 
         <div className="flex items-center gap-2">
