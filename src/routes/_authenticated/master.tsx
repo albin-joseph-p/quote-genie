@@ -257,7 +257,7 @@ function MasterPage() {
 
   const startEdit = (r: Inv) => {
     setEditingCode(r.item_code);
-    setDraft({ item_name: r.item_name, category: r.category ?? "", brand: r.brand ?? "" });
+    setDraft({ item_name: r.item_name, category: r.category ?? "", brand: r.brand ?? "", remarks: r.remarks ?? "" });
   };
 
   const cancelEdit = () => {
