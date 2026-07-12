@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Upload, Trash2, Download, Search, Pencil, Check, X, Plus } from "lucide-react";
+import { Upload, Trash2, Download, Search, Pencil, Check, X, Plus, FileDown } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -42,9 +42,10 @@ type Inv = {
   item_name: string;
   category: string | null;
   brand: string;
+  remarks: string;
 };
 
-type Draft = { item_name: string; category: string; brand: string };
+type Draft = { item_name: string; category: string; brand: string; remarks: string };
 
 const REQUIRED = ["item_code", "item_name"];
 
@@ -57,18 +58,19 @@ function MasterPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [addDraft, setAddDraft] = useState<{ item_code: string; item_name: string; category: string; brand: string }>({
+  const [addDraft, setAddDraft] = useState<{ item_code: string; item_name: string; category: string; brand: string; remarks: string }>({
     item_code: "",
     item_name: "",
     category: "",
     brand: "",
+    remarks: "",
   });
   const [deleteCode, setDeleteCode] = useState<string | null>(null);
 
   const invQ = useQuery({
     queryKey: ["inventory"],
     queryFn: async () =>
-      fetchAllRows<Inv>("inventory", "item_code,item_name,category,brand"),
+      fetchAllRows<Inv>("inventory", "item_code,item_name,category,brand,remarks"),
   });
 
 
@@ -86,7 +88,7 @@ function MasterPage() {
   const updateRow = useMutation({
     mutationFn: async (payload: {
       item_code: string;
-      patch: { item_name: string; category: string | null; brand: string };
+      patch: { item_name: string; category: string | null; brand: string; remarks: string };
     }) => {
       const { error } = await supabase
         .from("inventory")
@@ -114,7 +116,7 @@ function MasterPage() {
       qc.invalidateQueries({ queryKey: ["inventory", "taxonomy"] });
       toast.success("Item added");
       setAddOpen(false);
-      setAddDraft({ item_code: "", item_name: "", category: "", brand: "" });
+      setAddDraft({ item_code: "", item_name: "", category: "", brand: "", remarks: "" });
     },
     onError: (e) => toast.error((e as Error).message),
   });
@@ -188,11 +190,14 @@ function MasterPage() {
       const brandKey =
         findKey((k) => ["brand", "make", "manufacturer"].includes(k)) ??
         findKey((k) => k.includes("brand") || k.includes("make") || k.includes("manuf"));
+      const remarksKey =
+        findKey((k) => ["remarks", "remark", "notes", "note", "comment", "comments"].includes(k)) ??
+        findKey((k) => k.includes("remark") || k.includes("note") || k.includes("comment"));
 
       if (!codeKey || !nameKey) {
         throw new Error(`Missing required columns. Found: ${keys.join(", ")}`);
       }
-      console.log("[master upload] column mapping:", { codeKey, nameKey, catKey, brandKey, allKeys: keys });
+      console.log("[master upload] column mapping:", { codeKey, nameKey, catKey, brandKey, remarksKey, allKeys: keys });
 
       const val = (r: Record<string, unknown>, k: string | undefined) =>
         k ? String(r[k] ?? "").trim() : "";
@@ -203,6 +208,7 @@ function MasterPage() {
           item_name: val(r, nameKey),
           category: val(r, catKey) || null,
           brand: val(r, brandKey),
+          remarks: val(r, remarksKey),
         }))
         .filter((r) => r.item_code && r.item_name);
 
@@ -240,10 +246,10 @@ function MasterPage() {
 
   const downloadTemplate = () => {
     const csv =
-      "item_code,item_name,category,brand\n" +
-      "ELEC-FIN-15,1.5 sqmm Wire (90m),Wires,Finolex\n" +
-      "ELEC-POL-15,1.5 sqmm Wire (90m),Wires,Polycab\n" +
-      "SAN-JAQ-BSN,Basin Mixer,Plumbing,Jaquar\n";
+      "item_code,item_name,category,brand,remarks\n" +
+      "ELEC-FIN-15,1.5 sqmm Wire (90m),Wires,Finolex,\n" +
+      "ELEC-POL-15,1.5 sqmm Wire (90m),Wires,Polycab,\n" +
+      "SAN-JAQ-BSN,Basin Mixer,Plumbing,Jaquar,\n";
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -253,9 +259,40 @@ function MasterPage() {
     URL.revokeObjectURL(url);
   };
 
+  const csvEscape = (v: string) => {
+    if (/[",\n\r]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+    return v;
+  };
+
+  const exportCsv = () => {
+    const rows = invQ.data ?? [];
+    if (rows.length === 0) {
+      toast.error("No inventory to export");
+      return;
+    }
+    const header = ["item_code", "item_name", "category", "brand", "remarks"];
+    const body = rows
+      .map((r) =>
+        [r.item_code, r.item_name, r.category ?? "", r.brand ?? "", r.remarks ?? ""]
+          .map((v) => csvEscape(String(v)))
+          .join(","),
+      )
+      .join("\n");
+    const csv = header.join(",") + "\n" + body + "\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.download = `master-inventory-${stamp}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${rows.length} items`);
+  };
+
   const startEdit = (r: Inv) => {
     setEditingCode(r.item_code);
-    setDraft({ item_name: r.item_name, category: r.category ?? "", brand: r.brand ?? "" });
+    setDraft({ item_name: r.item_name, category: r.category ?? "", brand: r.brand ?? "", remarks: r.remarks ?? "" });
   };
 
   const cancelEdit = () => {
@@ -283,9 +320,11 @@ function MasterPage() {
     const name = draft.item_name.trim();
     const cat = draft.category.trim();
     const brand = draft.brand.trim();
+    const remarks = draft.remarks.trim();
     if (name !== editingOriginal.item_name) out.push({ field: "Name", old: editingOriginal.item_name, next: name });
     if (cat !== (editingOriginal.category ?? "")) out.push({ field: "Category", old: editingOriginal.category ?? "—", next: cat || "—" });
     if (brand !== (editingOriginal.brand ?? "")) out.push({ field: "Brand", old: editingOriginal.brand || "—", next: brand || "—" });
+    if (remarks !== (editingOriginal.remarks ?? "")) out.push({ field: "Remarks", old: editingOriginal.remarks || "—", next: remarks || "—" });
     return out;
   }, [editingOriginal, draft]);
 
@@ -304,6 +343,7 @@ function MasterPage() {
         item_name: draft.item_name.trim(),
         category: draft.category.trim() || null,
         brand: draft.brand.trim(),
+        remarks: draft.remarks.trim(),
       },
     });
   };
@@ -320,6 +360,7 @@ function MasterPage() {
       item_name,
       category: addDraft.category.trim() || null,
       brand: addDraft.brand.trim(),
+      remarks: addDraft.remarks.trim(),
     });
   };
 
@@ -385,6 +426,9 @@ function MasterPage() {
           <Button variant="outline" onClick={downloadTemplate}>
             <Download className="h-4 w-4 mr-2" /> Template
           </Button>
+          <Button variant="outline" onClick={exportCsv} disabled={all.length === 0}>
+            <FileDown className="h-4 w-4 mr-2" /> Export CSV
+          </Button>
           <Button variant="outline" onClick={() => setAddOpen(true)}>
             <Plus className="h-4 w-4 mr-2" /> Add Item
           </Button>
@@ -401,7 +445,7 @@ function MasterPage() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Required: <code>item_code, item_name</code>. Optional: <code>category, brand</code> (drive the brand selector on the workspace).
+          Required: <code>item_code, item_name</code>. Optional: <code>category, brand, remarks</code>.
         </p>
 
         <div className="flex items-center gap-2">
@@ -432,13 +476,14 @@ function MasterPage() {
                 <th className="text-left p-3 font-medium">Item Name</th>
                 <th className="text-left p-3 font-medium w-40">Category</th>
                 <th className="text-left p-3 font-medium w-40">Brand</th>
+                <th className="text-left p-3 font-medium w-56">Remarks</th>
                 <th className="text-right p-3 font-medium w-28">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                  <td colSpan={6} className="p-6 text-center text-muted-foreground">
                     {all.length === 0 ? "No inventory loaded." : "No items match your search."}
                   </td>
                 </tr>
@@ -479,6 +524,18 @@ function MasterPage() {
                         />
                       ) : (
                         r.brand || <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      {isEditing ? (
+                        <Input
+                          value={draft!.remarks}
+                          onChange={(e) => setDraft({ ...draft!, remarks: e.target.value })}
+                          className="h-8"
+                          placeholder="Add notes…"
+                        />
+                      ) : (
+                        r.remarks || <span className="text-muted-foreground">—</span>
                       )}
                     </td>
                     <td className="p-3 text-right">
@@ -523,7 +580,7 @@ function MasterPage() {
               })}
               {filtered.length > PAGE_SIZE && (
                 <tr className="border-t bg-muted/20">
-                  <td colSpan={5} className="p-3">
+                  <td colSpan={6} className="p-3">
                     <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
                       <span>
                         Showing {((page - 1) * PAGE_SIZE + 1).toLocaleString()}–
@@ -642,6 +699,14 @@ function MasterPage() {
                 value={addDraft.brand}
                 onChange={(e) => setAddDraft({ ...addDraft, brand: e.target.value })}
                 placeholder="e.g. Finolex"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Remarks</label>
+              <Input
+                value={addDraft.remarks}
+                onChange={(e) => setAddDraft({ ...addDraft, remarks: e.target.value })}
+                placeholder="Optional notes"
               />
             </div>
           </div>
