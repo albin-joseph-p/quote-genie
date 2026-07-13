@@ -108,7 +108,7 @@ Your job:
    c. Only after (a) and (b) are satisfied, use brand / other descriptors as tiebreakers.
 5. Normalize fractions before comparing: "2 1/2" = "2.5" = "2-1/2" = "2½". "1 1/2" = "1.5". Treat these as equal to their decimal equivalents when matching inventory names.
 6. If multiple inventory items match the exact size and type, pick the closest by name; if none match the exact size, RETURN null rather than a wrong-size item. A null match is better than a wrong-size match.
-7. Classify each line into ONE of the ALLOWED CATEGORIES below. NEVER invent a category. If none fits, set category to null.
+7. Classify each line into ONE of the ALLOWED CATEGORIES below. The Master Inventory shown to you has ALREADY been filtered to only these categories — you MUST NOT match items outside them. If no inventory item fits an extracted line within these categories, set itemCode to null and category to null.
 8. Extract customerQty as the integer quantity the customer wants (the number after the item, often after a dash or "x"). If unclear, set null.
 9. Ignore prices, totals, headers, addresses, dates, signatures.
 
