@@ -78,21 +78,20 @@ export const processQuotation = createServerFn({ method: "POST" })
       supabase.from("ai_instructions").select("instructions").limit(1).maybeSingle(),
     ]);
 
-    const invList = (inventory ?? [])
+    // Restrict inventory + categories to the user's selected categories. This is
+    // mandatory input, so the AI can only match within the chosen scope.
+    const allowedSet = new Set(data.allowedCategories.map((c) => c.trim()).filter(Boolean));
+    const scopedInventory = (inventory ?? []).filter((i) =>
+      allowedSet.has((i.category ?? "").trim()),
+    );
+
+    const invList = scopedInventory
       .map((i) => `${i.item_code} | ${i.item_name} | ${i.category ?? ""} | ${i.brand ?? ""}`)
       .join("\n");
     const synList = (synonyms ?? [])
       .map((s) => `"${s.customer_term}" => ${s.item_code}`)
       .join("\n");
-    // Derive allowed categories directly from inventory so the AI prompt is always
-    // aligned with Master Inventory (single source of truth, no drift).
-    const categoryNames = Array.from(
-      new Set(
-        (inventory ?? [])
-          .map((i) => (i.category ?? "").trim())
-          .filter((c) => c.length > 0),
-      ),
-    ).sort((a, b) => a.localeCompare(b));
+    const categoryNames = Array.from(allowedSet).sort((a, b) => a.localeCompare(b));
     const catList = categoryNames.join(", ");
     const customInstructions = (instructionsRow?.instructions ?? "").trim();
 
