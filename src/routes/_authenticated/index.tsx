@@ -247,7 +247,24 @@ function Workspace() {
     setBrandByCategory({});
     setUploadedPaths([]);
     setCustomerName("");
+    setSelectedCategories([]);
   };
+
+  const confirmCategoriesAndProcess = () => {
+    if (selectedCategories.length === 0) {
+      toast.error("Select at least one category.");
+      return;
+    }
+    setCategoryDialogOpen(false);
+    const files = pendingFiles;
+    setPendingFiles(null);
+    if (files && files.length > 0) {
+      onFiles(files, selectedCategories);
+    }
+  };
+
+  const toggleCategory = (c: string) =>
+    setSelectedCategories((xs) => (xs.includes(c) ? xs.filter((x) => x !== c) : [...xs, c]));
 
   const saveToHistory = async () => {
     if (rows.length === 0) {
