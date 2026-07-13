@@ -715,6 +715,90 @@ function Workspace() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={categoryDialogOpen}
+        onOpenChange={(o) => {
+          setCategoryDialogOpen(o);
+          if (!o) setPendingFiles(null);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Search Categories</DialogTitle>
+            <DialogDescription>
+              Tick the categories the AI is allowed to search in. Items outside these
+              categories will not be matched. This selection is required before processing images.
+            </DialogDescription>
+          </DialogHeader>
+
+          {categories.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              No categories found in Master Inventory yet.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2 pt-1 pb-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedCategories(categories)}
+              >
+                Select all
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedCategories([])}
+              >
+                Clear
+              </Button>
+            </div>
+          )}
+
+          <div className="max-h-[50vh] overflow-y-auto border rounded-md divide-y">
+            {categories.map((c) => {
+              const checked = selectedCategories.includes(c);
+              return (
+                <label
+                  key={c}
+                  className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-accent/50"
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={() => toggleCategory(c)}
+                  />
+                  <span className="text-sm">{c}</span>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {brandsByCategory[c]?.length ?? 0} brand{(brandsByCategory[c]?.length ?? 0) === 1 ? "" : "s"}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setCategoryDialogOpen(false);
+                setPendingFiles(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmCategoriesAndProcess}
+              disabled={selectedCategories.length === 0 || categories.length === 0}
+            >
+              {pendingFiles && pendingFiles.length > 0
+                ? `Process ${pendingFiles.length} image${pendingFiles.length === 1 ? "" : "s"}`
+                : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
