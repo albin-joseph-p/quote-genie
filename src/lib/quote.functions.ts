@@ -7,6 +7,7 @@ import { callGeminiAiStudio } from "./google-ai.server";
 const Input = z.object({
   imageBase64: z.string().min(1),
   mimeType: z.string().min(1),
+  allowedCategories: z.array(z.string()).min(1),
 });
 
 export type MatchedItem = {
