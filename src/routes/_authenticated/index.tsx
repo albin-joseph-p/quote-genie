@@ -473,7 +473,32 @@ function Workspace() {
       </Card>
 
       {/* Upload */}
-      <Card className="p-6">
+      <Card className="p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border rounded-md p-3 bg-muted/30">
+          <div className="flex items-start gap-2">
+            <Filter className="h-4 w-4 mt-0.5 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">Search Categories</p>
+              <p className="text-xs text-muted-foreground">
+                {selectedCategories.length === 0
+                  ? "Required — pick which categories the AI may match items from."
+                  : `AI will only match within: ${selectedCategories.join(", ")}`}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setCategoryDialogOpen(true);
+            }}
+          >
+            {selectedCategories.length === 0
+              ? "Select categories"
+              : `Edit (${selectedCategories.length})`}
+          </Button>
+        </div>
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
