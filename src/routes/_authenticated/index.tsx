@@ -78,6 +78,11 @@ function Workspace() {
   const [customerName, setCustomerName] = useState("");
   // category name → selected brand name
   const [brandByCategory, setBrandByCategory] = useState<Record<string, string>>({});
+  // Categories the AI is allowed to match within. Mandatory before any upload.
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  // Files staged while the user picks categories on their first upload.
+  const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
 
   // Reopen from history
   useEffect(() => {
