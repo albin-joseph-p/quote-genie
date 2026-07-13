@@ -192,7 +192,7 @@ function Workspace() {
           .then((r) => (r.error ? null : path))
           .catch(() => null);
         const [res, storagePath] = await Promise.all([
-          process({ data: { imageBase64: base64, mimeType: file.type } }),
+          process({ data: { imageBase64: base64, mimeType: file.type, allowedCategories: cats } }),
           uploadP,
         ]);
         return { idx, items: res.items, storagePath, error: res.error };
