@@ -7,6 +7,7 @@ import { callGeminiAiStudio } from "./google-ai.server";
 const Input = z.object({
   imageBase64: z.string().min(1),
   mimeType: z.string().min(1),
+  allowedCategories: z.array(z.string()).min(1),
 });
 
 export type MatchedItem = {
@@ -77,21 +78,20 @@ export const processQuotation = createServerFn({ method: "POST" })
       supabase.from("ai_instructions").select("instructions").limit(1).maybeSingle(),
     ]);
 
-    const invList = (inventory ?? [])
+    // Restrict inventory + categories to the user's selected categories. This is
+    // mandatory input, so the AI can only match within the chosen scope.
+    const allowedSet = new Set(data.allowedCategories.map((c) => c.trim()).filter(Boolean));
+    const scopedInventory = (inventory ?? []).filter((i) =>
+      allowedSet.has((i.category ?? "").trim()),
+    );
+
+    const invList = scopedInventory
       .map((i) => `${i.item_code} | ${i.item_name} | ${i.category ?? ""} | ${i.brand ?? ""}`)
       .join("\n");
     const synList = (synonyms ?? [])
       .map((s) => `"${s.customer_term}" => ${s.item_code}`)
       .join("\n");
-    // Derive allowed categories directly from inventory so the AI prompt is always
-    // aligned with Master Inventory (single source of truth, no drift).
-    const categoryNames = Array.from(
-      new Set(
-        (inventory ?? [])
-          .map((i) => (i.category ?? "").trim())
-          .filter((c) => c.length > 0),
-      ),
-    ).sort((a, b) => a.localeCompare(b));
+    const categoryNames = Array.from(allowedSet).sort((a, b) => a.localeCompare(b));
     const catList = categoryNames.join(", ");
     const customInstructions = (instructionsRow?.instructions ?? "").trim();
 
@@ -108,7 +108,7 @@ Your job:
    c. Only after (a) and (b) are satisfied, use brand / other descriptors as tiebreakers.
 5. Normalize fractions before comparing: "2 1/2" = "2.5" = "2-1/2" = "2½". "1 1/2" = "1.5". Treat these as equal to their decimal equivalents when matching inventory names.
 6. If multiple inventory items match the exact size and type, pick the closest by name; if none match the exact size, RETURN null rather than a wrong-size item. A null match is better than a wrong-size match.
-7. Classify each line into ONE of the ALLOWED CATEGORIES below. NEVER invent a category. If none fits, set category to null.
+7. Classify each line into ONE of the ALLOWED CATEGORIES below. The Master Inventory shown to you has ALREADY been filtered to only these categories — you MUST NOT match items outside them. If no inventory item fits an extracted line within these categories, set itemCode to null and category to null.
 8. Extract customerQty as the integer quantity the customer wants (the number after the item, often after a dash or "x"). If unclear, set null.
 9. Ignore prices, totals, headers, addresses, dates, signatures.
 

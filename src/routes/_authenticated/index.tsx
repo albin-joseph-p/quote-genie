@@ -13,7 +13,7 @@ import {
   X,
   Check,
   ChevronsUpDown,
-  
+  Filter,
   Save,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -22,7 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -77,6 +78,11 @@ function Workspace() {
   const [customerName, setCustomerName] = useState("");
   // category name → selected brand name
   const [brandByCategory, setBrandByCategory] = useState<Record<string, string>>({});
+  // Categories the AI is allowed to match within. Mandatory before any upload.
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  // Files staged while the user picks categories on their first upload.
+  const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
 
   // Reopen from history
   useEffect(() => {
@@ -144,11 +150,19 @@ function Workspace() {
     return btoa(binary);
   };
 
-  const onFiles = async (fileList: File[]) => {
+  const onFiles = async (fileList: File[], categoriesOverride?: string[]) => {
     const images = fileList.filter((f) => f.type.startsWith("image/"));
     const skipped = fileList.length - images.length;
     if (skipped > 0) toast.error(`${skipped} non-image file${skipped === 1 ? "" : "s"} skipped.`);
     if (images.length === 0) return;
+
+    const cats = categoriesOverride ?? selectedCategories;
+    if (cats.length === 0) {
+      // Stage the files and prompt the user to pick categories first.
+      setPendingFiles(images.slice(0, MAX_IMAGES));
+      setCategoryDialogOpen(true);
+      return;
+    }
 
     let batch = images;
     if (batch.length > MAX_IMAGES) {
@@ -178,7 +192,7 @@ function Workspace() {
           .then((r) => (r.error ? null : path))
           .catch(() => null);
         const [res, storagePath] = await Promise.all([
-          process({ data: { imageBase64: base64, mimeType: file.type } }),
+          process({ data: { imageBase64: base64, mimeType: file.type, allowedCategories: cats } }),
           uploadP,
         ]);
         return { idx, items: res.items, storagePath, error: res.error };
@@ -233,7 +247,24 @@ function Workspace() {
     setBrandByCategory({});
     setUploadedPaths([]);
     setCustomerName("");
+    setSelectedCategories([]);
   };
+
+  const confirmCategoriesAndProcess = () => {
+    if (selectedCategories.length === 0) {
+      toast.error("Select at least one category.");
+      return;
+    }
+    setCategoryDialogOpen(false);
+    const files = pendingFiles;
+    setPendingFiles(null);
+    if (files && files.length > 0) {
+      onFiles(files, selectedCategories);
+    }
+  };
+
+  const toggleCategory = (c: string) =>
+    setSelectedCategories((xs) => (xs.includes(c) ? xs.filter((x) => x !== c) : [...xs, c]));
 
   const saveToHistory = async () => {
     if (rows.length === 0) {
@@ -442,7 +473,32 @@ function Workspace() {
       </Card>
 
       {/* Upload */}
-      <Card className="p-6">
+      <Card className="p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border rounded-md p-3 bg-muted/30">
+          <div className="flex items-start gap-2">
+            <Filter className="h-4 w-4 mt-0.5 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">Search Categories</p>
+              <p className="text-xs text-muted-foreground">
+                {selectedCategories.length === 0
+                  ? "Required — pick which categories the AI may match items from."
+                  : `AI will only match within: ${selectedCategories.join(", ")}`}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setCategoryDialogOpen(true);
+            }}
+          >
+            {selectedCategories.length === 0
+              ? "Select categories"
+              : `Edit (${selectedCategories.length})`}
+          </Button>
+        </div>
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
@@ -657,6 +713,90 @@ function Workspace() {
               />
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={categoryDialogOpen}
+        onOpenChange={(o) => {
+          setCategoryDialogOpen(o);
+          if (!o) setPendingFiles(null);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Search Categories</DialogTitle>
+            <DialogDescription>
+              Tick the categories the AI is allowed to search in. Items outside these
+              categories will not be matched. This selection is required before processing images.
+            </DialogDescription>
+          </DialogHeader>
+
+          {categories.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              No categories found in Master Inventory yet.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2 pt-1 pb-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedCategories(categories)}
+              >
+                Select all
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedCategories([])}
+              >
+                Clear
+              </Button>
+            </div>
+          )}
+
+          <div className="max-h-[50vh] overflow-y-auto border rounded-md divide-y">
+            {categories.map((c) => {
+              const checked = selectedCategories.includes(c);
+              return (
+                <label
+                  key={c}
+                  className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-accent/50"
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={() => toggleCategory(c)}
+                  />
+                  <span className="text-sm">{c}</span>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {brandsByCategory[c]?.length ?? 0} brand{(brandsByCategory[c]?.length ?? 0) === 1 ? "" : "s"}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setCategoryDialogOpen(false);
+                setPendingFiles(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmCategoriesAndProcess}
+              disabled={selectedCategories.length === 0 || categories.length === 0}
+            >
+              {pendingFiles && pendingFiles.length > 0
+                ? `Process ${pendingFiles.length} image${pendingFiles.length === 1 ? "" : "s"}`
+                : "Save"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
