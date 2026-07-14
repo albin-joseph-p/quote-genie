@@ -55,8 +55,12 @@ const REQUIRED = ["item_code", "item_name"];
 function MasterPage() {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const { brand: brandParam } = Route.useSearch();
   const [uploading, setUploading] = useState(false);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(brandParam);
+  useEffect(() => {
+    if (brandParam) setSearch(brandParam);
+  }, [brandParam]);
   const [editingCode, setEditingCode] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
