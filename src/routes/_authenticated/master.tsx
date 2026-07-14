@@ -378,13 +378,27 @@ function MasterPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return all;
-    return all.filter(
+    const matches = all.filter(
       (r) =>
         r.item_code.toLowerCase().includes(q) ||
         r.item_name.toLowerCase().includes(q) ||
         (r.category ?? "").toLowerCase().includes(q) ||
         (r.brand ?? "").toLowerCase().includes(q),
     );
+    // Rank: exact brand match > brand starts-with > brand contains > other
+    const rank = (r: Inv) => {
+      const b = (r.brand ?? "").toLowerCase();
+      if (b === q) return 0;
+      if (b.startsWith(q)) return 1;
+      if (b.includes(q)) return 2;
+      return 3;
+    };
+    return [...matches].sort((a, b) => {
+      const ra = rank(a);
+      const rb = rank(b);
+      if (ra !== rb) return ra - rb;
+      return a.item_name.localeCompare(b.item_name);
+    });
   }, [all, search]);
   const PAGE_SIZE = 100;
   const [page, setPage] = useState(1);
