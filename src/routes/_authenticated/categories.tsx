@@ -1,10 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { fetchAllRows } from "@/lib/fetch-all";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/categories")({
   head: () => ({
@@ -41,13 +42,18 @@ function CategoriesPage() {
       }));
   }, [invQ.data]);
 
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const toggle = (name: string) =>
+    setOpen((prev) => ({ ...prev, [name]: !(prev[name] ?? true) }));
+  const isOpen = (name: string) => open[name] ?? true;
+
   return (
     <div className="mx-auto max-w-3xl px-6 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Categories & Brands</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Automatically derived from Master Inventory. Add, remove, or rename items in the Master
-          Inventory tab and this list updates instantly. Rows without a category are ignored.
+          Automatically derived from Master Inventory. Click a category to hide or show its brands.
+          Click any brand to jump to Master Inventory filtered to that brand.
         </p>
       </div>
 
@@ -60,29 +66,44 @@ function CategoriesPage() {
           </p>
         ) : (
           <div className="border rounded-lg divide-y">
-            {grouped.map((c) => (
-              <div key={c.name} className="p-3">
-                <div className="flex items-center gap-2 font-medium">
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  {c.name}
-                  <span className="text-xs text-muted-foreground font-normal">
-                    ({c.brands.length} brand{c.brands.length === 1 ? "" : "s"})
-                  </span>
+            {grouped.map((c) => {
+              const opened = isOpen(c.name);
+              return (
+                <div key={c.name} className="p-3">
+                  <button
+                    type="button"
+                    onClick={() => toggle(c.name)}
+                    className="flex items-center gap-2 font-medium w-full text-left hover:text-primary transition-colors"
+                    aria-expanded={opened}
+                  >
+                    <ChevronRight
+                      className={cn(
+                        "h-4 w-4 text-muted-foreground transition-transform",
+                        opened && "rotate-90",
+                      )}
+                    />
+                    {c.name}
+                    <span className="text-xs text-muted-foreground font-normal">
+                      ({c.brands.length} brand{c.brands.length === 1 ? "" : "s"})
+                    </span>
+                  </button>
+                  {opened && c.brands.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pl-6 pt-2">
+                      {c.brands.map((b) => (
+                        <Link
+                          key={b}
+                          to="/master"
+                          search={{ brand: b }}
+                          className="inline-flex items-center px-3 py-1 rounded-full border bg-background text-sm hover:bg-accent hover:border-primary transition-colors"
+                        >
+                          {b}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {c.brands.length > 0 && (
-                  <div className="flex flex-wrap gap-2 pl-6 pt-2">
-                    {c.brands.map((b) => (
-                      <span
-                        key={b}
-                        className="inline-flex items-center px-3 py-1 rounded-full border bg-background text-sm"
-                      >
-                        {b}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>
