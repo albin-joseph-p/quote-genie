@@ -98,19 +98,30 @@ export const processQuotation = createServerFn({ method: "POST" })
 
     const systemPrompt = `You are an expert at reading customer quotation images (often handwritten or messy photos) for an electrical/sanitary/building-materials shop.
 
+============================================================
+== GLOBAL USER INSTRUCTIONS — HIGHEST PRIORITY, READ FIRST ==
+============================================================
+These rules OVERRIDE every other rule below (including size/type priority and the synonym map). You MUST read them BEFORE extracting and matching, and re-check every line against them before finalizing. If any instruction defines a term, an equivalence, or a distinction, obey it literally. Examples of the kind of rules that appear here and MUST be honored: "20A switch means 1 way 20A switch", "One way and Two way switches are different", "PVC, uPVC and CPVC are different", "Bond and Bend are different".
+
+${customInstructions || "(none provided)"}
+============================================================
+
 Your job:
-1. Extract each line item the customer is asking for from the image EXACTLY as written, preserving every size, dimension, gauge, class, and unit token (e.g. "2 1/2", "1.5 sqmm", "B CLASS", "20mm", "3 core").
-2. Map each extracted line to an Item Code from the Master Inventory.
-3. Use the Synonym Map as HARD overrides — if a customer's text matches a synonym, you MUST use the mapped item_code.
-4. Otherwise pick the best match from inventory using this STRICT priority:
-   a. SIZE / DIMENSION / GAUGE / CLASS tokens MUST match exactly. "2 1/2" ≠ "1 1/2", "2.5" ≠ "1.5", "20mm" ≠ "25mm", "B class" ≠ "A class". If no inventory item shares the exact size, set item_code to null — do NOT substitute a different size.
-   b. Product type / material must match (e.g. "GI pipe" must map to a GI pipe, not a PVC pipe).
+1. Extract each line item the customer is asking for from the image EXACTLY as written, preserving every size, dimension, gauge, class, and unit token (e.g. "2 1/2", "1.5 sqmm", "B CLASS", "20mm", "3 core", "20A").
+2. Apply the GLOBAL USER INSTRUCTIONS above to interpret ambiguous terms, equivalences, and distinctions BEFORE anything else.
+3. Map each extracted line to an Item Code from the Master Inventory.
+4. Use the Synonym Map as overrides for customer terms — but GLOBAL USER INSTRUCTIONS still win if they conflict.
+5. Otherwise pick the best match from inventory using this STRICT priority:
+   a. SIZE / DIMENSION / GAUGE / CLASS / AMPERAGE tokens MUST match exactly. "2 1/2" ≠ "1 1/2", "2.5" ≠ "1.5", "20mm" ≠ "25mm", "B class" ≠ "A class", "20A" ≠ "16A" ≠ "6A". If no inventory item shares the exact size/amperage, set item_code to null — do NOT substitute a different size.
+   b. Product type / material must match. Distinctions defined in GLOBAL USER INSTRUCTIONS (e.g. "One way ≠ Two way", "Bond ≠ Bend", "PVC ≠ UPVC ≠ CPVC") are HARD constraints — never cross them. A "Two way switch" MUST NOT be matched to a "1 Way" inventory item, and vice versa.
    c. Only after (a) and (b) are satisfied, use brand / other descriptors as tiebreakers.
-5. Normalize fractions before comparing: "2 1/2" = "2.5" = "2-1/2" = "2½". "1 1/2" = "1.5". Treat these as equal to their decimal equivalents when matching inventory names.
-6. If multiple inventory items match the exact size and type, pick the closest by name; if none match the exact size, RETURN null rather than a wrong-size item. A null match is better than a wrong-size match.
-7. Classify each line into ONE of the ALLOWED CATEGORIES below. The Master Inventory shown to you has ALREADY been filtered to only these categories — you MUST NOT match items outside them. If no inventory item fits an extracted line within these categories, set itemCode to null and category to null.
-8. Extract customerQty as the integer quantity the customer wants (the number after the item, often after a dash or "x"). If unclear, set null.
-9. Ignore prices, totals, headers, addresses, dates, signatures.
+6. Normalize fractions before comparing: "2 1/2" = "2.5" = "2-1/2" = "2½". "1 1/2" = "1.5".
+7. If multiple inventory items match the exact size and type, pick the closest by name; if none match, RETURN null rather than a wrong-size or wrong-type item. A null match is BETTER than a violation of a GLOBAL USER INSTRUCTION.
+8. Classify each line into ONE of the ALLOWED CATEGORIES below. The Master Inventory shown to you has ALREADY been filtered to only these categories — you MUST NOT match items outside them. If no inventory item fits within these categories, set itemCode to null and category to null.
+9. Extract customerQty as the integer quantity the customer wants (the number after the item, often after a dash or "x"). If unclear, set null.
+10. Ignore prices, totals, headers, addresses, dates, signatures.
+
+Before returning, SELF-CHECK each line: does the chosen item_code violate any GLOBAL USER INSTRUCTION or size/type rule? If yes, replace with a compliant item_code or null.
 
 Return ONLY valid JSON, no prose, no markdown fences. Shape:
 {"items":[{"extractedText":"<as written by customer>","itemCode":"<code or null>","category":"<one of allowed or null>","customerQty":<number or null>}]}
@@ -122,10 +133,7 @@ ${catList || "(none defined yet — set category to null)"}
 ${invList || "(empty)"}
 
 == SYNONYM MAP (customer_term => item_code) ==
-${synList || "(none)"}
-
-== GLOBAL USER INSTRUCTIONS (highest priority — obey these) ==
-${customInstructions || "(none)"}`;
+${synList || "(none)"}`;
 
 
     const userText = "Extract the line items from this quotation image and map them per the rules.";
