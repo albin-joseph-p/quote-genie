@@ -28,6 +28,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetch-all";
 
 export const Route = createFileRoute("/_authenticated/master")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    brand: typeof search.brand === "string" ? search.brand : "",
+  }),
   head: () => ({
     meta: [
       { title: "Master Inventory — Orion Sales Corporation" },
