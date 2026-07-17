@@ -450,255 +450,325 @@ function Workspace() {
     toast.success("Copied to clipboard.");
   };
 
+  const workspaceFont = { fontFamily: "'Manrope', ui-sans-serif, system-ui, sans-serif" } as const;
+  const headingFont = { fontFamily: "'Sora', ui-sans-serif, system-ui, sans-serif" } as const;
+  const hasResults = rows.length > 0;
+
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Quotation Workspace</h1>
+    <div className="mx-auto max-w-[1400px] px-6 py-8" style={workspaceFont}>
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground" style={headingFont}>
+          Quotation Workspace
+        </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Upload customer quote images. AI extracts items and classifies them into your categories.
+          Upload customer quote images. AI extracts items and matches them against your inventory.
         </p>
       </div>
 
-      {/* Customer name */}
-      <Card className="p-4">
-        <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-          Customer Name
-        </label>
-        <Input
-          value={customerName}
-          onChange={(e) => setCustomerName(e.target.value)}
-          placeholder="Whom is this quotation for?"
-          className="max-w-md"
-        />
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* LEFT: Inputs & Config */}
+        <Card className="lg:col-span-5 p-6 space-y-6 bg-card">
+          {/* Customer */}
+          <section>
+            <label
+              className="block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2"
+              style={headingFont}
+            >
+              Customer
+            </label>
+            <Input
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="Whom is this quotation for?"
+              className="h-10"
+            />
+          </section>
 
-      {/* Upload */}
-      <Card className="p-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 border rounded-md p-3 bg-muted/30">
-          <div className="flex items-start gap-2">
-            <Filter className="h-4 w-4 mt-0.5 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium">Search Categories</p>
+          {/* Categories */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <label
+                className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
+                style={headingFont}
+              >
+                Search Categories
+              </label>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCategoryDialogOpen(true);
+                }}
+              >
+                <Filter className="h-3 w-3 mr-1" />
+                {selectedCategories.length === 0 ? "Select" : `Edit (${selectedCategories.length})`}
+              </Button>
+            </div>
+            {selectedCategories.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                {selectedCategories.length === 0
-                  ? "Required — pick which categories the AI may match items from."
-                  : `AI will only match within: ${selectedCategories.join(", ")}`}
+                Required — pick which categories the AI may match items from.
               </p>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              setCategoryDialogOpen(true);
-            }}
-          >
-            {selectedCategories.length === 0
-              ? "Select categories"
-              : `Edit (${selectedCategories.length})`}
-          </Button>
-        </div>
-        <div
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            const files = Array.from(e.dataTransfer.files ?? []);
-            if (files.length) onFiles(files);
-          }}
-          onClick={() => fileRef.current?.click()}
-          className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-colors"
-        >
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              const files = Array.from(e.target.files ?? []);
-              if (files.length) onFiles(files);
-              e.target.value = "";
-            }}
-          />
-          {loading ? (
-            <div className="flex flex-col items-center gap-3 text-primary">
-              <Loader2 className="h-8 w-8 animate-spin" />
-              <p className="text-sm font-medium">
-                {progress
-                  ? `Processing ${progress.done} / ${progress.total} image${progress.total === 1 ? "" : "s"}…`
-                  : "Reading image and matching items…"}
-              </p>
-            </div>
-          ) : previews.length > 0 ? (
-            <div className="flex flex-col items-center gap-3">
-              <div className="flex flex-wrap justify-center gap-2">
-                {previews.map((p, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setZoomed(p);
-                    }}
-                    className="relative group"
-                    title={`Click to zoom · ${p.name}`}
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {selectedCategories.map((c) => (
+                  <span
+                    key={c}
+                    className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium"
                   >
-                    <img
-                      src={p.url}
-                      alt={p.name}
-                      className="h-24 w-24 object-cover rounded border group-hover:ring-2 group-hover:ring-primary transition"
-                    />
-                  </button>
+                    {c}
+                  </span>
                 ))}
               </div>
-              <p className="text-sm text-muted-foreground">
-                {previews.length} image{previews.length === 1 ? "" : "s"} uploaded · click or drop to add more (up to {MAX_IMAGES} per batch)
+            )}
+          </section>
+
+          {/* Upload */}
+          <section>
+            <label
+              className="block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3"
+              style={headingFont}
+            >
+              Quotation Images
+            </label>
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const files = Array.from(e.dataTransfer.files ?? []);
+                if (files.length) onFiles(files);
+              }}
+              onClick={() => fileRef.current?.click()}
+              className="group border-2 border-dashed border-border rounded-xl p-6 text-center cursor-pointer hover:border-primary hover:bg-accent/30 transition-colors bg-muted/30"
+            >
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  if (files.length) onFiles(files);
+                  e.target.value = "";
+                }}
+              />
+              {loading ? (
+                <div className="flex flex-col items-center gap-3 py-4 text-primary">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                  <p className="text-sm font-medium">
+                    {progress
+                      ? `Processing ${progress.done} / ${progress.total} image${progress.total === 1 ? "" : "s"}…`
+                      : "Reading image and matching items…"}
+                  </p>
+                </div>
+              ) : previews.length > 0 ? (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {previews.map((p, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setZoomed(p);
+                        }}
+                        className="relative"
+                        title={`Click to zoom · ${p.name}`}
+                      >
+                        <img
+                          src={p.url}
+                          alt={p.name}
+                          className="h-20 w-20 object-cover rounded-lg border hover:ring-2 hover:ring-primary transition"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {previews.length} uploaded · click or drop to add more (up to {MAX_IMAGES})
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-3 py-2">
+                  <div className="w-12 h-12 rounded-full bg-card shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Upload className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      Drop files here or <span className="text-primary">browse</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      JPEG or PNG · up to {MAX_IMAGES} at a time
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Brand per Category */}
+          {detectedCategories.length > 0 && (
+            <section className="pt-2 border-t">
+              <label
+                className="block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3"
+                style={headingFont}
+              >
+                Brand per Category
+              </label>
+              <div className="space-y-2">
+                {detectedCategories.map((catName) => (
+                  <CategoryBrandRow
+                    key={catName}
+                    categoryName={catName}
+                    known={categoryExists.has(catName)}
+                    selectedBrand={brandByCategory[catName] ?? ""}
+                    brands={brandsByCategory[catName] ?? []}
+                    onSelectBrand={(brand) => applyBrandToCategory(catName, brand)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </Card>
+
+        {/* RIGHT: Results */}
+        <Card className="lg:col-span-7 p-6 bg-muted/20 min-h-[520px] flex flex-col">
+          <header className="flex items-center justify-between mb-5">
+            <h2 className="text-base font-semibold text-foreground" style={headingFont}>
+              Results
+            </h2>
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "w-2 h-2 rounded-full",
+                  loading ? "bg-primary animate-pulse" : hasResults ? "bg-success" : "bg-muted-foreground/50",
+                )}
+              />
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                {loading ? "Processing" : hasResults ? `${rows.length} Items` : "Awaiting Data"}
+              </span>
+            </div>
+          </header>
+
+          {!hasResults ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
+              <div className="w-20 h-20 bg-muted rounded-2xl flex items-center justify-center mb-5">
+                <Upload className="h-8 w-8 text-muted-foreground" strokeWidth={1.5} />
+              </div>
+              <h3 className="text-base font-semibold mb-1.5" style={headingFont}>
+                No items yet
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-xs">
+                Select search categories and upload quotation images to populate this workspace.
               </p>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-3 text-muted-foreground">
-              <Upload className="h-10 w-10" />
-              <div>
-                <p className="font-medium text-foreground">Drop quotation images here</p>
-                <p className="text-sm">or click to browse · JPEG, PNG · up to {MAX_IMAGES} at a time</p>
+            <div className="flex flex-col gap-4 flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  Click a matched name to override
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="ghost" size="sm" onClick={clearAll}>
+                    <X className="h-4 w-4 mr-1.5" /> Clear
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={saveToHistory} disabled={saving}>
+                    <Save className="h-4 w-4 mr-1.5" /> {saving ? "Saving…" : "Save"}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleCopy}>
+                    <Copy className="h-4 w-4 mr-1.5" /> Copy
+                  </Button>
+                  <Button size="sm" onClick={handleExportXlsx}>
+                    <FileDown className="h-4 w-4 mr-1.5" /> Export
+                  </Button>
+                </div>
+              </div>
+
+              <div className="border rounded-xl overflow-visible bg-card">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="text-left p-3 font-medium">Extracted Text</th>
+                      <th className="text-left p-3 font-medium">Database Match</th>
+                      <th className="text-left p-3 font-medium">Category</th>
+                      <th className="text-left p-3 font-medium w-20">Qty</th>
+                      <th className="text-left p-3 font-medium w-32">Status</th>
+                      <th className="w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => {
+                      const inv = r.itemCode ? invByCode.get(r.itemCode) : undefined;
+                      const edited = r.itemCode !== r.aiItemCode;
+                      return (
+                        <tr
+                          key={r.id}
+                          className={cn("border-t align-top", edited && "bg-[var(--color-edited)]")}
+                        >
+                          <td className="p-3 text-muted-foreground">{r.extractedText}</td>
+                          <td className="p-3">
+                            <InventoryCombobox
+                              inventory={inventory}
+                              value={r.itemCode}
+                              onChange={(code) =>
+                                setRows((rs) =>
+                                  rs.map((x) => (x.id === r.id ? { ...x, itemCode: code } : x)),
+                                )
+                              }
+                            />
+                          </td>
+                          <td className="p-3 text-muted-foreground">{r.category ?? "—"}</td>
+                          <td className="p-3">
+                            <Input
+                              type="number"
+                              min={1}
+                              value={r.qty}
+                              onChange={(e) =>
+                                setRows((rs) =>
+                                  rs.map((x) =>
+                                    x.id === r.id ? { ...x, qty: Math.max(1, Number(e.target.value) || 1) } : x,
+                                  ),
+                                )
+                              }
+                              className="h-9 w-20"
+                            />
+                          </td>
+                          <td className="p-3">
+                            {!r.itemCode ? (
+                              <Badge variant="destructive">No match</Badge>
+                            ) : edited ? (
+                              <Badge className="bg-[var(--color-edited)] text-foreground border border-border">
+                                <Pencil className="h-3 w-3 mr-1" /> Overridden
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">
+                                <CheckCircle2 className="h-3 w-3 mr-1" /> AI match
+                              </Badge>
+                            )}
+                            {inv && (
+                              <p className="text-[10px] text-muted-foreground mt-1 font-mono">{inv.item_code}</p>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <button
+                              onClick={() => setRows((rs) => rs.filter((x) => x.id !== r.id))}
+                              className="text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
-        </div>
-      </Card>
-
-      {/* Category → Brand selector panel */}
-      {detectedCategories.length > 0 && (
-        <Card className="p-6 space-y-3">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Brand per Category
-            </h2>
-            <p className="text-xs text-muted-foreground mt-1">
-              Choose a brand for each detected category. The selection applies to every matching row.
-            </p>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {detectedCategories.map((catName) => (
-              <CategoryBrandRow
-                key={catName}
-                categoryName={catName}
-                known={categoryExists.has(catName)}
-                selectedBrand={brandByCategory[catName] ?? ""}
-                brands={brandsByCategory[catName] ?? []}
-                onSelectBrand={(brand) => applyBrandToCategory(catName, brand)}
-              />
-            ))}
-
-          </div>
         </Card>
-      )}
+      </div>
 
-      {/* Results */}
-      {rows.length > 0 && (
-        <Card className="p-6 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground">
-              {rows.length} item{rows.length === 1 ? "" : "s"} · click a matched name to override
-            </p>
-            <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={clearAll}>
-                <X className="h-4 w-4 mr-2" /> Clear all
-              </Button>
-              <Button variant="outline" size="sm" onClick={saveToHistory} disabled={saving}>
-                <Save className="h-4 w-4 mr-2" /> {saving ? "Saving…" : "Save to History"}
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleCopy}>
-                <Copy className="h-4 w-4 mr-2" /> Copy
-              </Button>
-              <Button size="sm" onClick={handleExportXlsx}>
-                <FileDown className="h-4 w-4 mr-2" /> Export Excel
-              </Button>
-            </div>
-          </div>
-
-          <div className="border rounded-lg overflow-visible">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
-                <tr>
-                  <th className="text-left p-3 font-medium">Extracted Text</th>
-                  <th className="text-left p-3 font-medium">Database Match</th>
-                  <th className="text-left p-3 font-medium">Category</th>
-                  <th className="text-left p-3 font-medium w-24">Qty</th>
-                  <th className="text-left p-3 font-medium w-32">Status</th>
-                  <th className="w-10"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => {
-                  const inv = r.itemCode ? invByCode.get(r.itemCode) : undefined;
-                  const edited = r.itemCode !== r.aiItemCode;
-                  return (
-                    <tr
-                      key={r.id}
-                      className={cn("border-t align-top", edited && "bg-[var(--color-edited)]")}
-                    >
-                      <td className="p-3 text-muted-foreground">{r.extractedText}</td>
-                      <td className="p-3">
-                        <InventoryCombobox
-                          inventory={inventory}
-                          value={r.itemCode}
-                          onChange={(code) =>
-                            setRows((rs) =>
-                              rs.map((x) => (x.id === r.id ? { ...x, itemCode: code } : x)),
-                            )
-                          }
-                        />
-                      </td>
-                      <td className="p-3 text-muted-foreground">{r.category ?? "—"}</td>
-                      <td className="p-3">
-                        <Input
-                          type="number"
-                          min={1}
-                          value={r.qty}
-                          onChange={(e) =>
-                            setRows((rs) =>
-                              rs.map((x) =>
-                                x.id === r.id ? { ...x, qty: Math.max(1, Number(e.target.value) || 1) } : x,
-                              ),
-                            )
-                          }
-                          className="h-9 w-20"
-                        />
-                      </td>
-                      <td className="p-3">
-                        {!r.itemCode ? (
-                          <Badge variant="destructive">No match</Badge>
-                        ) : edited ? (
-                          <Badge className="bg-[var(--color-edited)] text-foreground border border-border">
-                            <Pencil className="h-3 w-3 mr-1" /> Overridden
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">
-                            <CheckCircle2 className="h-3 w-3 mr-1" /> AI match
-                          </Badge>
-                        )}
-                        {inv && (
-                          <p className="text-[10px] text-muted-foreground mt-1 font-mono">{inv.item_code}</p>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        <button
-                          onClick={() => setRows((rs) => rs.filter((x) => x.id !== r.id))}
-                          className="text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
 
       <Dialog open={!!zoomed} onOpenChange={(o) => !o && setZoomed(null)}>
         <DialogContent className="max-w-[95vw] w-fit p-2 sm:p-3">
