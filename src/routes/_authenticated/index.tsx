@@ -895,6 +895,52 @@ function Workspace() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Annotation prompt */}
+      <Dialog open={annotatePromptOpen} onOpenChange={setAnnotatePromptOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Annotate before processing?</DialogTitle>
+            <DialogDescription>
+              You can draw boxes on the image to mark categories, brands, items, and where
+              a group ends. This helps the AI match items more accurately. Optional — skip
+              to process straight away.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAnnotatePromptOpen(false);
+                runProcessing(filesForAnnotator, categoriesForBatch, {});
+              }}
+            >
+              Skip
+            </Button>
+            <Button
+              onClick={() => {
+                setAnnotatePromptOpen(false);
+                setAnnotatorOpen(true);
+              }}
+            >
+              Annotate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Annotation editor */}
+      <AnnotationEditor
+        open={annotatorOpen}
+        onOpenChange={setAnnotatorOpen}
+        files={filesForAnnotator}
+        initial={annotationsForBatch}
+        onSubmit={(map) => {
+          setAnnotationsForBatch(map);
+          setAnnotatorOpen(false);
+          runProcessing(filesForAnnotator, categoriesForBatch, map);
+        }}
+      />
     </div>
   );
 }
