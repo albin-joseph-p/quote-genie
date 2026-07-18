@@ -146,7 +146,21 @@ ${invList || "(empty)"}
 ${synList || "(none)"}`;
 
 
-    const userText = "Extract the line items from this quotation image and map them per the rules.";
+    const annotations = data.annotations ?? [];
+    const fmtPct = (n: number) => `${Math.round(n * 100)}%`;
+    const annotationBlock =
+      annotations.length > 0
+        ? `\n\n== USER MANUAL ANNOTATIONS (HIGH PRIORITY HINTS) ==\nThe user has drawn bounding boxes on the image and classified each region. Coordinates are percentages of the image (x,y = top-left; w,h = width/height). Use these as authoritative hints for what each region represents. A "Group End" marks the visual end of the preceding group of items — items before it and items after it belong to different groups; treat them as separate contexts. Use "Category" and "Brand" annotations to constrain matches for items inside their region (until the next Group End). If a box has "text", trust that as the correct reading for that region.\n\n${annotations
+            .map(
+              (a, i) =>
+                `#${i + 1} ${a.label} at [x=${fmtPct(a.x)}, y=${fmtPct(a.y)}, w=${fmtPct(a.w)}, h=${fmtPct(a.h)}]${a.text ? ` — text: "${a.text}"` : ""}`,
+            )
+            .join("\n")}`
+        : "";
+
+    const userText =
+      "Extract the line items from this quotation image and map them per the rules." +
+      annotationBlock;
     let rawText: string;
     try {
       rawText = await callGeminiAiStudio({
