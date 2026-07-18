@@ -177,6 +177,18 @@ function Workspace() {
       batch = batch.slice(0, MAX_IMAGES);
     }
 
+    // Ask whether the user wants to manually annotate before processing.
+    setFilesForAnnotator(batch);
+    setCategoriesForBatch(cats);
+    setAnnotationsForBatch({});
+    setAnnotatePromptOpen(true);
+  };
+
+  const runProcessing = async (
+    batch: File[],
+    cats: string[],
+    annotationsMap: Record<number, Annotation[]>,
+  ) => {
     const newPreviews = batch.map((f) => ({ url: URL.createObjectURL(f), name: f.name }));
     setPreviews((p) => [...p, ...newPreviews]);
 
@@ -190,7 +202,6 @@ function Workspace() {
     const results = await Promise.allSettled(
       batch.map(async (file, idx) => {
         const base64 = await fileToBase64(file);
-        // Upload to storage in parallel with AI processing
         const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
         const path = `${batchStamp}/${idx}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const uploadP = supabase.storage
@@ -198,8 +209,16 @@ function Workspace() {
           .upload(path, file, { contentType: file.type, upsert: false })
           .then((r) => (r.error ? null : path))
           .catch(() => null);
+        const anns = (annotationsMap[idx] ?? []).map(({ id: _id, ...rest }) => rest);
         const [res, storagePath] = await Promise.all([
-          process({ data: { imageBase64: base64, mimeType: file.type, allowedCategories: cats } }),
+          process({
+            data: {
+              imageBase64: base64,
+              mimeType: file.type,
+              allowedCategories: cats,
+              annotations: anns,
+            },
+          }),
           uploadP,
         ]);
         return { idx, items: res.items, storagePath, error: res.error };
