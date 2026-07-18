@@ -37,6 +37,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { processQuotation } from "@/lib/quote.functions";
 import { cn } from "@/lib/utils";
 import { fetchAllRows } from "@/lib/fetch-all";
+import { AnnotationEditor, type Annotation } from "@/components/annotation-editor";
 
 type InventoryRow = {
   item_code: string;
