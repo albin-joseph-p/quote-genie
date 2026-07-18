@@ -37,6 +37,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { processQuotation } from "@/lib/quote.functions";
 import { cn } from "@/lib/utils";
 import { fetchAllRows } from "@/lib/fetch-all";
+import { AnnotationEditor, type Annotation } from "@/components/annotation-editor";
 
 type InventoryRow = {
   item_code: string;
@@ -83,6 +84,12 @@ function Workspace() {
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   // Files staged while the user picks categories on their first upload.
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
+  // Manual annotation flow state
+  const [annotatePromptOpen, setAnnotatePromptOpen] = useState(false);
+  const [annotatorOpen, setAnnotatorOpen] = useState(false);
+  const [filesForAnnotator, setFilesForAnnotator] = useState<File[]>([]);
+  const [annotationsForBatch, setAnnotationsForBatch] = useState<Record<number, Annotation[]>>({});
+  const [categoriesForBatch, setCategoriesForBatch] = useState<string[]>([]);
 
   // Reopen from history
   useEffect(() => {
@@ -170,6 +177,18 @@ function Workspace() {
       batch = batch.slice(0, MAX_IMAGES);
     }
 
+    // Ask whether the user wants to manually annotate before processing.
+    setFilesForAnnotator(batch);
+    setCategoriesForBatch(cats);
+    setAnnotationsForBatch({});
+    setAnnotatePromptOpen(true);
+  };
+
+  const runProcessing = async (
+    batch: File[],
+    cats: string[],
+    annotationsMap: Record<number, Annotation[]>,
+  ) => {
     const newPreviews = batch.map((f) => ({ url: URL.createObjectURL(f), name: f.name }));
     setPreviews((p) => [...p, ...newPreviews]);
 
@@ -183,7 +202,6 @@ function Workspace() {
     const results = await Promise.allSettled(
       batch.map(async (file, idx) => {
         const base64 = await fileToBase64(file);
-        // Upload to storage in parallel with AI processing
         const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
         const path = `${batchStamp}/${idx}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const uploadP = supabase.storage
@@ -191,8 +209,16 @@ function Workspace() {
           .upload(path, file, { contentType: file.type, upsert: false })
           .then((r) => (r.error ? null : path))
           .catch(() => null);
+        const anns = (annotationsMap[idx] ?? []).map(({ id: _id, ...rest }) => rest);
         const [res, storagePath] = await Promise.all([
-          process({ data: { imageBase64: base64, mimeType: file.type, allowedCategories: cats } }),
+          process({
+            data: {
+              imageBase64: base64,
+              mimeType: file.type,
+              allowedCategories: cats,
+              annotations: anns,
+            },
+          }),
           uploadP,
         ]);
         return { idx, items: res.items, storagePath, error: res.error };
@@ -869,6 +895,52 @@ function Workspace() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Annotation prompt */}
+      <Dialog open={annotatePromptOpen} onOpenChange={setAnnotatePromptOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Annotate before processing?</DialogTitle>
+            <DialogDescription>
+              You can draw boxes on the image to mark categories, brands, items, and where
+              a group ends. This helps the AI match items more accurately. Optional — skip
+              to process straight away.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAnnotatePromptOpen(false);
+                runProcessing(filesForAnnotator, categoriesForBatch, {});
+              }}
+            >
+              Skip
+            </Button>
+            <Button
+              onClick={() => {
+                setAnnotatePromptOpen(false);
+                setAnnotatorOpen(true);
+              }}
+            >
+              Annotate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Annotation editor */}
+      <AnnotationEditor
+        open={annotatorOpen}
+        onOpenChange={setAnnotatorOpen}
+        files={filesForAnnotator}
+        initial={annotationsForBatch}
+        onSubmit={(map) => {
+          setAnnotationsForBatch(map);
+          setAnnotatorOpen(false);
+          runProcessing(filesForAnnotator, categoriesForBatch, map);
+        }}
+      />
     </div>
   );
 }
