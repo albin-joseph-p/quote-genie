@@ -4,10 +4,20 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { callGeminiAiStudio } from "./google-ai.server";
 
 
+const AnnotationSchema = z.object({
+  label: z.enum(["Category", "Brand", "Item", "Group End"]),
+  x: z.number(),
+  y: z.number(),
+  w: z.number(),
+  h: z.number(),
+  text: z.string().optional(),
+});
+
 const Input = z.object({
   imageBase64: z.string().min(1),
   mimeType: z.string().min(1),
   allowedCategories: z.array(z.string()).min(1),
+  annotations: z.array(AnnotationSchema).optional(),
 });
 
 export type MatchedItem = {
