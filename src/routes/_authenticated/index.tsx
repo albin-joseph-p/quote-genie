@@ -84,6 +84,12 @@ function Workspace() {
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   // Files staged while the user picks categories on their first upload.
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
+  // Manual annotation flow state
+  const [annotatePromptOpen, setAnnotatePromptOpen] = useState(false);
+  const [annotatorOpen, setAnnotatorOpen] = useState(false);
+  const [filesForAnnotator, setFilesForAnnotator] = useState<File[]>([]);
+  const [annotationsForBatch, setAnnotationsForBatch] = useState<Record<number, Annotation[]>>({});
+  const [categoriesForBatch, setCategoriesForBatch] = useState<string[]>([]);
 
   // Reopen from history
   useEffect(() => {
