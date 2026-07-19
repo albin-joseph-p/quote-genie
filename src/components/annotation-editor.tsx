@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Trash2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Hand } from "lucide-react";
+import { Trash2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Hand, Maximize, Minimize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -75,6 +75,39 @@ export function AnnotationEditor({
   const [panMode, setPanMode] = useState(false);
   const panStart = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
   const spaceDown = useRef(false);
+
+  // resizable dialog
+  const [dims, setDims] = useState<{ w: number; h: number }>(() => ({
+    w: typeof window !== "undefined" ? Math.round(window.innerWidth * 0.96) : 1200,
+    h: typeof window !== "undefined" ? Math.round(window.innerHeight * 0.96) : 800,
+  }));
+  const [maximized, setMaximized] = useState(true);
+  const resizeStart = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const onResizeDown = (e: React.PointerEvent) => {
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    resizeStart.current = { x: e.clientX, y: e.clientY, w: dims.w, h: dims.h };
+    setMaximized(false);
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  const onResizeMove = (e: React.PointerEvent) => {
+    if (!resizeStart.current) return;
+    const nw = Math.max(560, Math.min(window.innerWidth, resizeStart.current.w + (e.clientX - resizeStart.current.x)));
+    const nh = Math.max(420, Math.min(window.innerHeight, resizeStart.current.h + (e.clientY - resizeStart.current.y)));
+    setDims({ w: nw, h: nh });
+  };
+  const onResizeUp = () => {
+    resizeStart.current = null;
+  };
+  const toggleMaximize = () => {
+    if (maximized) {
+      setDims({ w: Math.round(window.innerWidth * 0.7), h: Math.round(window.innerHeight * 0.7) });
+      setMaximized(false);
+    } else {
+      setDims({ w: Math.round(window.innerWidth * 0.96), h: Math.round(window.innerHeight * 0.96) });
+      setMaximized(true);
+    }
+  };
 
   const resetView = () => {
     fitToContainer();
@@ -242,14 +275,27 @@ export function AnnotationEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl w-[96vw] h-[96vh] max-h-[96vh] p-0 overflow-hidden !flex flex-col !gap-0">
-        <DialogHeader className="shrink-0 px-5 pt-4 pb-2 pr-12">
+      <DialogContent
+        className="p-0 overflow-hidden !flex flex-col !gap-0 !max-w-none"
+        style={{ width: dims.w, height: dims.h, maxWidth: "100vw", maxHeight: "100vh" }}
+      >
+        <DialogHeader className="shrink-0 px-5 pt-4 pb-2 pr-20 relative">
           <DialogTitle>Annotate image {idx + 1} of {files.length}</DialogTitle>
           <DialogDescription>
             Drag to draw a box. Scroll to zoom, hold <b>Space</b> or use the hand tool to pan.
             Use <b>Group End</b> to mark where a group stops.
           </DialogDescription>
+          <button
+            type="button"
+            onClick={toggleMaximize}
+            title={maximized ? "Restore" : "Maximize"}
+            className="absolute right-12 top-4 rounded-sm p-1 text-muted-foreground hover:bg-muted"
+          >
+            {maximized ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+          </button>
         </DialogHeader>
+
+
 
         <div className="grid w-full min-w-0 flex-1 min-h-0 grid-cols-[48px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_170px] gap-0 border-t md:grid-cols-[48px_minmax(0,1fr)_320px] md:grid-rows-1">
           {/* Tool rail */}
@@ -435,6 +481,18 @@ export function AnnotationEditor({
             <Button onClick={() => onSubmit(annots)}>Process with annotations</Button>
           </div>
         </DialogFooter>
+        <div
+          onPointerDown={onResizeDown}
+          onPointerMove={onResizeMove}
+          onPointerUp={onResizeUp}
+          onPointerCancel={onResizeUp}
+          title="Drag to resize"
+          className="absolute bottom-0 right-0 z-50 h-4 w-4 cursor-nwse-resize"
+          style={{
+            background:
+              "linear-gradient(135deg, transparent 0 55%, hsl(var(--muted-foreground)/0.6) 55% 60%, transparent 60% 70%, hsl(var(--muted-foreground)/0.6) 70% 75%, transparent 75%)",
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
