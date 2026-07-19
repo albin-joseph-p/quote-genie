@@ -87,13 +87,14 @@ export function AnnotationEditor({
     const iw = img.naturalWidth;
     const ih = img.naturalHeight;
     if (!iw || !ih) return;
-    const cw = cont.clientWidth;
-    const ch = cont.clientHeight;
+    const padding = 24;
+    const cw = Math.max(1, cont.clientWidth - padding);
+    const ch = Math.max(1, cont.clientHeight - padding);
     if (!cw || !ch) return;
-    const s = Math.min(cw / iw, ch / ih);
+    const s = Math.min(1, cw / iw, ch / ih);
     setScale(s);
-    setTx((cw - iw * s) / 2);
-    setTy((ch - ih * s) / 2);
+    setTx((cont.clientWidth - iw * s) / 2);
+    setTy((cont.clientHeight - ih * s) / 2);
   };
 
 
@@ -112,6 +113,17 @@ export function AnnotationEditor({
   useEffect(() => {
     resetView();
   }, [idx, open]);
+
+  useEffect(() => {
+    if (!open || !containerRef.current) return;
+    const frame = window.requestAnimationFrame(fitToContainer);
+    const observer = new ResizeObserver(() => fitToContainer());
+    observer.observe(containerRef.current);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [open, idx, urls[idx]]);
 
   useEffect(() => {
     if (!open) return;
@@ -230,8 +242,8 @@ export function AnnotationEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl w-[95vw] p-0 overflow-hidden">
-        <DialogHeader className="px-5 pt-4 pb-2">
+      <DialogContent className="max-w-6xl w-[96vw] h-[96vh] max-h-[96vh] p-0 overflow-hidden flex flex-col gap-0">
+        <DialogHeader className="shrink-0 px-5 pt-4 pb-2 pr-12">
           <DialogTitle>Annotate image {idx + 1} of {files.length}</DialogTitle>
           <DialogDescription>
             Drag to draw a box. Scroll to zoom, hold <b>Space</b> or use the hand tool to pan.
@@ -239,11 +251,11 @@ export function AnnotationEditor({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-0 border-t h-[70vh]">
+        <div className="grid grid-cols-1 grid-rows-[minmax(0,1fr)_170px] md:grid-cols-[minmax(0,1fr)_320px] md:grid-rows-1 gap-0 border-t flex-1 min-h-0">
           {/* Image + overlay */}
           <div
             ref={containerRef}
-            className="relative bg-muted/30 overflow-hidden select-none touch-none h-full min-h-[400px]"
+            className="relative bg-muted/30 overflow-hidden select-none touch-none h-full min-h-0"
 
             onWheel={onWheel}
             onContextMenu={(e) => e.preventDefault()}
@@ -397,7 +409,7 @@ export function AnnotationEditor({
           </div>
         </div>
 
-        <DialogFooter className="px-5 py-3 border-t flex-row items-center sm:justify-between gap-2">
+        <DialogFooter className="shrink-0 px-5 py-3 border-t flex-row items-center sm:justify-between gap-2">
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
