@@ -77,10 +77,25 @@ export function AnnotationEditor({
   const spaceDown = useRef(false);
 
   const resetView = () => {
-    setScale(1);
-    setTx(0);
-    setTy(0);
+    fitToContainer();
   };
+
+  const fitToContainer = () => {
+    const img = imgRef.current;
+    const cont = containerRef.current;
+    if (!img || !cont) return;
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    if (!iw || !ih) return;
+    const cw = cont.clientWidth;
+    const ch = cont.clientHeight;
+    if (!cw || !ch) return;
+    const s = Math.min(cw / iw, ch / ih);
+    setScale(s);
+    setTx((cw - iw * s) / 2);
+    setTy((ch - ih * s) / 2);
+  };
+
 
   useEffect(() => {
     if (!open) return;
@@ -224,11 +239,12 @@ export function AnnotationEditor({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-0 border-t max-h-[70vh]">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-0 border-t h-[70vh]">
           {/* Image + overlay */}
           <div
             ref={containerRef}
-            className="relative bg-muted/30 overflow-hidden select-none touch-none"
+            className="relative bg-muted/30 overflow-hidden select-none touch-none h-full min-h-[400px]"
+
             onWheel={onWheel}
             onContextMenu={(e) => e.preventDefault()}
           >
@@ -270,7 +286,8 @@ export function AnnotationEditor({
                     src={urls[idx]}
                     alt={files[idx]?.name}
                     draggable={false}
-                    className={`max-h-[65vh] max-w-full object-contain block ${
+                    onLoad={fitToContainer}
+                    className={`block max-w-none ${
                       panMode || spaceDown.current ? "cursor-grab" : "cursor-crosshair"
                     }`}
                     onPointerDown={onPointerDown}
@@ -295,19 +312,20 @@ export function AnnotationEditor({
                       <span
                         className="text-[10px] font-semibold px-1 py-0.5 text-white"
                         style={{ background: LABEL_BORDER[a.label] }}
-                    >
-                      {a.label}
-                    </span>
-                  </div>
-                ))}
-                {draft && (
-                  <div
-                    className="absolute pointer-events-none"
-                    style={{
-                      left: `${draft.x * 100}%`,
-                      top: `${draft.y * 100}%`,
-                      width: `${draft.w * 100}%`,
-                      height: `${draft.h * 100}%`,
+                      >
+                        {a.label}
+                      </span>
+                    </div>
+                  ))}
+                  {draft && (
+                    <div
+                      className="absolute pointer-events-none"
+                      style={{
+                        left: `${draft.x * 100}%`,
+                        top: `${draft.y * 100}%`,
+                        width: `${draft.w * 100}%`,
+                        height: `${draft.h * 100}%`,
+
                       border: "2px dashed #3b82f6",
                       background: "rgba(59,130,246,0.15)",
                     }}
