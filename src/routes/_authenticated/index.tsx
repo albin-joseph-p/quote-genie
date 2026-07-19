@@ -382,7 +382,24 @@ function Workspace() {
     return out;
   };
 
-  // Score with SIZE as a hard gate; token overlap only ranks size-compatible candidates.
+  // Extract "way count" for switches: "1 way", "one-way", "2way", "two way", etc.
+  // Returned as normalized digit strings ("1", "2", "3"). Used as a hard gate
+  // so a "Two way Switch" never re-matches to a "1 WAY SWITCH".
+  const WAY_WORDS: Record<string, string> = {
+    one: "1", two: "2", three: "3", four: "4",
+    single: "1", double: "2", triple: "3",
+  };
+  const extractWayCount = (text: string): Set<string> => {
+    const out = new Set<string>();
+    const s = text.toLowerCase();
+    for (const m of s.matchAll(/(\d+)\s*-?\s*way\b/g)) out.add(m[1]);
+    for (const m of s.matchAll(/\b(one|two|three|four|single|double|triple)\s*-?\s*way\b/g)) {
+      out.add(WAY_WORDS[m[1]]);
+    }
+    return out;
+  };
+
+  // Score with SIZE + WAY-COUNT as hard gates; token overlap only ranks compatible candidates.
   const score = (extracted: string, itemName: string) => {
     const A = extracted.toLowerCase();
     const B = itemName.toLowerCase();
@@ -394,6 +411,14 @@ function Workspace() {
       for (const s of sizesA) if (sizesB.has(s)) { anyMatch = true; break; }
       if (!anyMatch) return -1; // hard reject: wrong size
     }
+    // Way-count hard gate: if extracted specifies N-way, candidate must too.
+    const waysA = extractWayCount(A);
+    const waysB = extractWayCount(B);
+    if (waysA.size > 0) {
+      let anyMatch = false;
+      for (const w of waysA) if (waysB.has(w)) { anyMatch = true; break; }
+      if (!anyMatch) return -1; // hard reject: wrong way-count (1-way vs 2-way)
+    }
     let s = 0;
     if (B.includes(A) || A.includes(B)) s += 50;
     const tokensA = new Set(A.split(/\W+/).filter(Boolean));
@@ -401,6 +426,8 @@ function Workspace() {
     for (const t of tokensA) if (tokensB.has(t)) s += 1;
     // Reward exact size overlap count
     for (const sz of sizesA) if (sizesB.has(sz)) s += 10;
+    // Reward way-count agreement strongly
+    for (const w of waysA) if (waysB.has(w)) s += 20;
     return s;
   };
 
