@@ -91,7 +91,7 @@ export function AnnotationEditor({
     const cw = Math.max(1, cont.clientWidth - padding);
     const ch = Math.max(1, cont.clientHeight - padding);
     if (!cw || !ch) return;
-    const s = Math.min(1, cw / iw, ch / ih);
+    const s = Math.min(4, cw / iw, ch / ih);
     setScale(s);
     setTx((cont.clientWidth - iw * s) / 2);
     setTy((cont.clientHeight - ih * s) / 2);
@@ -251,40 +251,40 @@ export function AnnotationEditor({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 grid-rows-[minmax(0,1fr)_170px] md:grid-cols-[minmax(0,1fr)_320px] md:grid-rows-1 gap-0 border-t flex-1 min-h-0">
+        <div className="grid w-full min-w-0 flex-1 min-h-0 grid-cols-[48px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_170px] gap-0 border-t md:grid-cols-[48px_minmax(0,1fr)_320px] md:grid-rows-1">
+          {/* Tool rail */}
+          <div className="z-10 flex min-h-0 shrink-0 flex-col items-center gap-1 border-r bg-background/95 p-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => zoomBy(1 / 1.2)} title="Zoom out">
+              <ZoomOut className="h-3.5 w-3.5" />
+            </Button>
+            <span className="w-full rounded-sm bg-muted px-1 py-1 text-center font-mono text-[10px] tabular-nums">
+              {Math.round(scale * 100)}%
+            </span>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => zoomBy(1.2)} title="Zoom in">
+              <ZoomIn className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={resetView} title="Reset view">
+              <Maximize2 className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant={panMode ? "default" : "ghost"}
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setPanMode((p) => !p)}
+              title="Pan mode (or hold Space)"
+            >
+              <Hand className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+
           {/* Image + overlay */}
           <div
             ref={containerRef}
-            className="relative bg-muted/30 overflow-hidden select-none touch-none h-full min-h-0"
+            className="relative h-full w-full min-w-0 min-h-0 overflow-hidden bg-muted/30 select-none touch-none"
 
             onWheel={onWheel}
             onContextMenu={(e) => e.preventDefault()}
           >
-            {/* zoom toolbar */}
-            <div className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-background/90 backdrop-blur rounded-md border shadow-sm p-1">
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => zoomBy(1 / 1.2)} title="Zoom out">
-                <ZoomOut className="h-3.5 w-3.5" />
-              </Button>
-              <span className="text-[11px] font-mono w-10 text-center tabular-nums">
-                {Math.round(scale * 100)}%
-              </span>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => zoomBy(1.2)} title="Zoom in">
-                <ZoomIn className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={resetView} title="Reset view">
-                <Maximize2 className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant={panMode ? "default" : "ghost"}
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => setPanMode((p) => !p)}
-                title="Pan mode (or hold Space)"
-              >
-                <Hand className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-
             {urls[idx] && (
               <div
                 className="absolute top-0 left-0 origin-top-left"
@@ -349,7 +349,7 @@ export function AnnotationEditor({
           </div>
 
           {/* Annotation list */}
-          <div className="border-l bg-card overflow-y-auto p-3 space-y-2">
+          <div className="col-span-2 min-h-0 overflow-y-auto border-t bg-card p-3 space-y-2 md:col-span-1 md:border-l md:border-t-0">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Annotations ({current.length})
             </p>
