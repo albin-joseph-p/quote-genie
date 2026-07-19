@@ -481,6 +481,18 @@ export function AnnotationEditor({
             <Button onClick={() => onSubmit(annots)}>Process with annotations</Button>
           </div>
         </DialogFooter>
+        <div
+          onPointerDown={onResizeDown}
+          onPointerMove={onResizeMove}
+          onPointerUp={onResizeUp}
+          onPointerCancel={onResizeUp}
+          title="Drag to resize"
+          className="absolute bottom-0 right-0 z-50 h-4 w-4 cursor-nwse-resize"
+          style={{
+            background:
+              "linear-gradient(135deg, transparent 0 55%, hsl(var(--muted-foreground)/0.6) 55% 60%, transparent 60% 70%, hsl(var(--muted-foreground)/0.6) 70% 75%, transparent 75%)",
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
