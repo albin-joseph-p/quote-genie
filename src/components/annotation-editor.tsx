@@ -242,7 +242,7 @@ export function AnnotationEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl w-[96vw] h-[96vh] max-h-[96vh] p-0 overflow-hidden flex flex-col gap-0">
+      <DialogContent className="max-w-6xl w-[96vw] h-[96vh] max-h-[96vh] p-0 overflow-hidden !flex flex-col !gap-0">
         <DialogHeader className="shrink-0 px-5 pt-4 pb-2 pr-12">
           <DialogTitle>Annotate image {idx + 1} of {files.length}</DialogTitle>
           <DialogDescription>
