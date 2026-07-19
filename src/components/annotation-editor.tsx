@@ -91,7 +91,7 @@ export function AnnotationEditor({
     const cw = Math.max(1, cont.clientWidth - padding);
     const ch = Math.max(1, cont.clientHeight - padding);
     if (!cw || !ch) return;
-    const s = Math.min(1, cw / iw, ch / ih);
+    const s = Math.min(4, cw / iw, ch / ih);
     setScale(s);
     setTx((cont.clientWidth - iw * s) / 2);
     setTy((cont.clientHeight - ih * s) / 2);
