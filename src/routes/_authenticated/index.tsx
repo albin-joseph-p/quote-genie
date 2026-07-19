@@ -459,6 +459,20 @@ function Workspace() {
           candidates = filtered;
         }
         if (candidates.length === 0) return { ...r, itemCode: null };
+        // Way-count pre-filter: if the extracted text specifies N-way, drop
+        // candidates that specify a different N-way. Never coerce to a wrong
+        // way-count variant (e.g. "Two way Switch" → "1 WAY SWITCH").
+        const waysWanted = extractWayCount(r.extractedText);
+        if (waysWanted.size > 0) {
+          const wayFiltered = candidates.filter((c) => {
+            const cw = extractWayCount(c.item_name);
+            if (cw.size === 0) return true; // candidate is way-agnostic
+            for (const w of waysWanted) if (cw.has(w)) return true;
+            return false;
+          });
+          if (wayFiltered.length > 0) candidates = wayFiltered;
+          else return { ...r, itemCode: null };
+        }
         let best: InventoryRow | null = null;
         let bestScore = 0;
         for (const c of candidates) {
