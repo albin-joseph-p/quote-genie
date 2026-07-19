@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Trash2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Hand } from "lucide-react";
+import { Trash2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Hand, Maximize, Minimize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
