@@ -273,16 +273,28 @@ export function AnnotationEditor({
     setScale(newScale);
   };
 
-  return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl w-[96vw] h-[96vh] max-h-[96vh] p-0 overflow-hidden !flex flex-col !gap-0">
-        <DialogHeader className="shrink-0 px-5 pt-4 pb-2 pr-12">
+      <DialogContent
+        className="p-0 overflow-hidden !flex flex-col !gap-0 !max-w-none"
+        style={{ width: dims.w, height: dims.h, maxWidth: "100vw", maxHeight: "100vh" }}
+      >
+        <DialogHeader className="shrink-0 px-5 pt-4 pb-2 pr-20 relative">
           <DialogTitle>Annotate image {idx + 1} of {files.length}</DialogTitle>
           <DialogDescription>
             Drag to draw a box. Scroll to zoom, hold <b>Space</b> or use the hand tool to pan.
             Use <b>Group End</b> to mark where a group stops.
           </DialogDescription>
+          <button
+            type="button"
+            onClick={toggleMaximize}
+            title={maximized ? "Restore" : "Maximize"}
+            className="absolute right-12 top-4 rounded-sm p-1 text-muted-foreground hover:bg-muted"
+          >
+            {maximized ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+          </button>
         </DialogHeader>
+
+
 
         <div className="grid w-full min-w-0 flex-1 min-h-0 grid-cols-[48px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_170px] gap-0 border-t md:grid-cols-[48px_minmax(0,1fr)_320px] md:grid-rows-1">
           {/* Tool rail */}
