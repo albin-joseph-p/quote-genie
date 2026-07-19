@@ -273,6 +273,7 @@ export function AnnotationEditor({
     setScale(newScale);
   };
 
+  return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="p-0 overflow-hidden !flex flex-col !gap-0 !max-w-none"
