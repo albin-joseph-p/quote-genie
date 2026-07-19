@@ -76,6 +76,39 @@ export function AnnotationEditor({
   const panStart = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
   const spaceDown = useRef(false);
 
+  // resizable dialog
+  const [dims, setDims] = useState<{ w: number; h: number }>(() => ({
+    w: typeof window !== "undefined" ? Math.round(window.innerWidth * 0.96) : 1200,
+    h: typeof window !== "undefined" ? Math.round(window.innerHeight * 0.96) : 800,
+  }));
+  const [maximized, setMaximized] = useState(true);
+  const resizeStart = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const onResizeDown = (e: React.PointerEvent) => {
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    resizeStart.current = { x: e.clientX, y: e.clientY, w: dims.w, h: dims.h };
+    setMaximized(false);
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  const onResizeMove = (e: React.PointerEvent) => {
+    if (!resizeStart.current) return;
+    const nw = Math.max(560, Math.min(window.innerWidth, resizeStart.current.w + (e.clientX - resizeStart.current.x)));
+    const nh = Math.max(420, Math.min(window.innerHeight, resizeStart.current.h + (e.clientY - resizeStart.current.y)));
+    setDims({ w: nw, h: nh });
+  };
+  const onResizeUp = () => {
+    resizeStart.current = null;
+  };
+  const toggleMaximize = () => {
+    if (maximized) {
+      setDims({ w: Math.round(window.innerWidth * 0.7), h: Math.round(window.innerHeight * 0.7) });
+      setMaximized(false);
+    } else {
+      setDims({ w: Math.round(window.innerWidth * 0.96), h: Math.round(window.innerHeight * 0.96) });
+      setMaximized(true);
+    }
+  };
+
   const resetView = () => {
     fitToContainer();
   };
