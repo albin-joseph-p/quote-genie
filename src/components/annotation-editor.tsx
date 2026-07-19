@@ -68,6 +68,20 @@ export function AnnotationEditor({
   const [draft, setDraft] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const dragStart = useRef<{ x: number; y: number } | null>(null);
 
+  // zoom + pan
+  const [scale, setScale] = useState(1);
+  const [tx, setTx] = useState(0);
+  const [ty, setTy] = useState(0);
+  const [panMode, setPanMode] = useState(false);
+  const panStart = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
+  const spaceDown = useRef(false);
+
+  const resetView = () => {
+    setScale(1);
+    setTx(0);
+    setTy(0);
+  };
+
   useEffect(() => {
     if (!open) return;
     const created = files.map((f) => URL.createObjectURL(f));
@@ -79,6 +93,28 @@ export function AnnotationEditor({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, files]);
+
+  useEffect(() => {
+    resetView();
+  }, [idx, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const kd = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        spaceDown.current = true;
+      }
+    };
+    const ku = (e: KeyboardEvent) => {
+      if (e.code === "Space") spaceDown.current = false;
+    };
+    window.addEventListener("keydown", kd);
+    window.addEventListener("keyup", ku);
+    return () => {
+      window.removeEventListener("keydown", kd);
+      window.removeEventListener("keyup", ku);
+    };
+  }, [open]);
 
   const current = annots[idx] ?? [];
 
@@ -95,7 +131,16 @@ export function AnnotationEditor({
     return { x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) };
   };
 
+  const isPanGesture = (e: React.PointerEvent) =>
+    panMode || spaceDown.current || e.button === 1 || e.button === 2;
+
   const onPointerDown = (e: React.PointerEvent) => {
+    if (isPanGesture(e)) {
+      (e.target as Element).setPointerCapture?.(e.pointerId);
+      panStart.current = { x: e.clientX, y: e.clientY, tx, ty };
+      e.preventDefault();
+      return;
+    }
     if (e.button !== 0) return;
     const pt = relFromEvent(e);
     if (!pt) return;
@@ -104,6 +149,11 @@ export function AnnotationEditor({
     setDraft({ x: pt.x, y: pt.y, w: 0, h: 0 });
   };
   const onPointerMove = (e: React.PointerEvent) => {
+    if (panStart.current) {
+      setTx(panStart.current.tx + (e.clientX - panStart.current.x));
+      setTy(panStart.current.ty + (e.clientY - panStart.current.y));
+      return;
+    }
     if (!dragStart.current) return;
     const pt = relFromEvent(e);
     if (!pt) return;
@@ -114,6 +164,10 @@ export function AnnotationEditor({
     setDraft({ x, y, w, h });
   };
   const onPointerUp = () => {
+    if (panStart.current) {
+      panStart.current = null;
+      return;
+    }
     if (!draft || !dragStart.current) {
       dragStart.current = null;
       setDraft(null);
@@ -131,14 +185,42 @@ export function AnnotationEditor({
     setDraft(null);
   };
 
+  const onWheel = (e: React.WheelEvent) => {
+    if (!containerRef.current) return;
+    e.preventDefault();
+    const rect = containerRef.current.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    const delta = -e.deltaY;
+    const factor = delta > 0 ? 1.1 : 1 / 1.1;
+    const newScale = Math.min(8, Math.max(0.2, scale * factor));
+    const k = newScale / scale;
+    // zoom toward cursor
+    setTx(cx - (cx - tx) * k);
+    setTy(cy - (cy - ty) * k);
+    setScale(newScale);
+  };
+
+  const zoomBy = (factor: number) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const newScale = Math.min(8, Math.max(0.2, scale * factor));
+    const k = newScale / scale;
+    setTx(cx - (cx - tx) * k);
+    setTy(cy - (cy - ty) * k);
+    setScale(newScale);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl w-[95vw] p-0 overflow-hidden">
         <DialogHeader className="px-5 pt-4 pb-2">
           <DialogTitle>Annotate image {idx + 1} of {files.length}</DialogTitle>
           <DialogDescription>
-            Drag on the image to draw a box, then classify it. Use <b>Group End</b> to mark
-            where a group of items stops.
+            Drag to draw a box. Scroll to zoom, hold <b>Space</b> or use the hand tool to pan.
+            Use <b>Group End</b> to mark where a group stops.
           </DialogDescription>
         </DialogHeader>
 
@@ -146,38 +228,73 @@ export function AnnotationEditor({
           {/* Image + overlay */}
           <div
             ref={containerRef}
-            className="relative bg-muted/30 flex items-center justify-center overflow-auto p-3 select-none"
+            className="relative bg-muted/30 overflow-hidden select-none touch-none"
+            onWheel={onWheel}
+            onContextMenu={(e) => e.preventDefault()}
           >
+            {/* zoom toolbar */}
+            <div className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-background/90 backdrop-blur rounded-md border shadow-sm p-1">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => zoomBy(1 / 1.2)} title="Zoom out">
+                <ZoomOut className="h-3.5 w-3.5" />
+              </Button>
+              <span className="text-[11px] font-mono w-10 text-center tabular-nums">
+                {Math.round(scale * 100)}%
+              </span>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => zoomBy(1.2)} title="Zoom in">
+                <ZoomIn className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={resetView} title="Reset view">
+                <Maximize2 className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={panMode ? "default" : "ghost"}
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setPanMode((p) => !p)}
+                title="Pan mode (or hold Space)"
+              >
+                <Hand className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+
             {urls[idx] && (
-              <div className="relative inline-block">
-                <img
-                  ref={imgRef}
-                  src={urls[idx]}
-                  alt={files[idx]?.name}
-                  draggable={false}
-                  className="max-h-[65vh] max-w-full object-contain block cursor-crosshair"
-                  onPointerDown={onPointerDown}
-                  onPointerMove={onPointerMove}
-                  onPointerUp={onPointerUp}
-                  onPointerCancel={onPointerUp}
-                />
-                {/* existing boxes */}
-                {current.map((a) => (
-                  <div
-                    key={a.id}
-                    className="absolute pointer-events-none flex items-start"
-                    style={{
-                      left: `${a.x * 100}%`,
-                      top: `${a.y * 100}%`,
-                      width: `${a.w * 100}%`,
-                      height: `${a.h * 100}%`,
-                      background: LABEL_COLORS[a.label],
-                      border: `2px solid ${LABEL_BORDER[a.label]}`,
-                    }}
-                  >
-                    <span
-                      className="text-[10px] font-semibold px-1 py-0.5 text-white"
-                      style={{ background: LABEL_BORDER[a.label] }}
+              <div
+                className="absolute top-0 left-0 origin-top-left"
+                style={{
+                  transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
+                }}
+              >
+                <div className="relative inline-block">
+                  <img
+                    ref={imgRef}
+                    src={urls[idx]}
+                    alt={files[idx]?.name}
+                    draggable={false}
+                    className={`max-h-[65vh] max-w-full object-contain block ${
+                      panMode || spaceDown.current ? "cursor-grab" : "cursor-crosshair"
+                    }`}
+                    onPointerDown={onPointerDown}
+                    onPointerMove={onPointerMove}
+                    onPointerUp={onPointerUp}
+                    onPointerCancel={onPointerUp}
+                  />
+                  {/* existing boxes */}
+                  {current.map((a) => (
+                    <div
+                      key={a.id}
+                      className="absolute pointer-events-none flex items-start"
+                      style={{
+                        left: `${a.x * 100}%`,
+                        top: `${a.y * 100}%`,
+                        width: `${a.w * 100}%`,
+                        height: `${a.h * 100}%`,
+                        background: LABEL_COLORS[a.label],
+                        border: `2px solid ${LABEL_BORDER[a.label]}`,
+                      }}
+                    >
+                      <span
+                        className="text-[10px] font-semibold px-1 py-0.5 text-white"
+                        style={{ background: LABEL_BORDER[a.label] }}
                     >
                       {a.label}
                     </span>
