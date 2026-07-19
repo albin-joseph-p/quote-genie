@@ -270,7 +270,8 @@ export function AnnotationEditor({
                     src={urls[idx]}
                     alt={files[idx]?.name}
                     draggable={false}
-                    className={`max-h-[65vh] max-w-full object-contain block ${
+                    onLoad={fitToContainer}
+                    className={`block max-w-none ${
                       panMode || spaceDown.current ? "cursor-grab" : "cursor-crosshair"
                     }`}
                     onPointerDown={onPointerDown}
@@ -295,19 +296,20 @@ export function AnnotationEditor({
                       <span
                         className="text-[10px] font-semibold px-1 py-0.5 text-white"
                         style={{ background: LABEL_BORDER[a.label] }}
-                    >
-                      {a.label}
-                    </span>
-                  </div>
-                ))}
-                {draft && (
-                  <div
-                    className="absolute pointer-events-none"
-                    style={{
-                      left: `${draft.x * 100}%`,
-                      top: `${draft.y * 100}%`,
-                      width: `${draft.w * 100}%`,
-                      height: `${draft.h * 100}%`,
+                      >
+                        {a.label}
+                      </span>
+                    </div>
+                  ))}
+                  {draft && (
+                    <div
+                      className="absolute pointer-events-none"
+                      style={{
+                        left: `${draft.x * 100}%`,
+                        top: `${draft.y * 100}%`,
+                        width: `${draft.w * 100}%`,
+                        height: `${draft.h * 100}%`,
+
                       border: "2px dashed #3b82f6",
                       background: "rgba(59,130,246,0.15)",
                     }}
