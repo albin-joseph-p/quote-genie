@@ -239,11 +239,12 @@ export function AnnotationEditor({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-0 border-t max-h-[70vh]">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-0 border-t h-[70vh]">
           {/* Image + overlay */}
           <div
             ref={containerRef}
-            className="relative bg-muted/30 overflow-hidden select-none touch-none"
+            className="relative bg-muted/30 overflow-hidden select-none touch-none h-full min-h-[400px]"
+
             onWheel={onWheel}
             onContextMenu={(e) => e.preventDefault()}
           >
