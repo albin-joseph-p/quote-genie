@@ -312,7 +312,8 @@ export function AnnotationEditor({
                       background: "rgba(59,130,246,0.15)",
                     }}
                   />
-                )}
+                  )}
+                </div>
               </div>
             )}
           </div>
