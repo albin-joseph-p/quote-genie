@@ -77,10 +77,25 @@ export function AnnotationEditor({
   const spaceDown = useRef(false);
 
   const resetView = () => {
-    setScale(1);
-    setTx(0);
-    setTy(0);
+    fitToContainer();
   };
+
+  const fitToContainer = () => {
+    const img = imgRef.current;
+    const cont = containerRef.current;
+    if (!img || !cont) return;
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    if (!iw || !ih) return;
+    const cw = cont.clientWidth;
+    const ch = cont.clientHeight;
+    if (!cw || !ch) return;
+    const s = Math.min(cw / iw, ch / ih);
+    setScale(s);
+    setTx((cw - iw * s) / 2);
+    setTy((ch - ih * s) / 2);
+  };
+
 
   useEffect(() => {
     if (!open) return;
