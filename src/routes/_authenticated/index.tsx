@@ -328,15 +328,19 @@ function Workspace() {
           .then((r) => (r.error ? null : path))
           .catch(() => null);
         const anns = (annotationsMap[idx] ?? []).map(({ id: _id, ...rest }) => rest);
+        const { base64, mimeType } = await maskExcludedRegions(file, annotationsMap[idx] ?? []);
+        // Don't also send the Exclude boxes as annotation hints — the pixels are
+        // already blacked out, so the AI doesn't need to know about them.
+        const annsForAi = anns.filter((a) => a.label !== "Exclude");
         const [res, storagePath] = await Promise.all([
           process({
             data: {
               imageBase64: base64,
-              mimeType: file.type,
+              mimeType,
               allowedCategories: cats,
               defaultBrandByCategory,
 
-              annotations: anns,
+              annotations: annsForAi,
             },
           }),
           uploadP,
