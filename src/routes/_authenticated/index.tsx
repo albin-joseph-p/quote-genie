@@ -729,7 +729,26 @@ function Workspace() {
                   <p className="text-xs text-muted-foreground">
                     {previews.length} uploaded · click Add more or drop files to append (up to {MAX_IMAGES} per batch)
                   </p>
+                  {lastBatch && lastBatch.files.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFilesForAnnotator(lastBatch.files);
+                        setCategoriesForBatch(lastBatch.cats);
+                        setAnnotationsForBatch(lastBatch.annotations);
+                        setEditingBatchStamp(lastBatch.stamp);
+                        setAnnotatorOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                      View / edit annotations
+                    </Button>
+                  )}
                 </div>
+
 
               ) : (
                 <div className="flex flex-col items-center gap-3 py-2">
