@@ -333,7 +333,10 @@ function Workspace() {
     setUploadedPaths([]);
     setCustomerName("");
     setSelectedCategories([]);
+    setLastBatch(null);
+    setEditingBatchStamp(null);
   };
+
 
   const confirmCategoriesAndProcess = () => {
     if (selectedCategories.length === 0) {
