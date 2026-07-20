@@ -91,6 +91,18 @@ function Workspace() {
   const [filesForAnnotator, setFilesForAnnotator] = useState<File[]>([]);
   const [annotationsForBatch, setAnnotationsForBatch] = useState<Record<number, Annotation[]>>({});
   const [categoriesForBatch, setCategoriesForBatch] = useState<string[]>([]);
+  // Editing mode: when set, submitting the annotator replaces the given batch's
+  // rows/previews/paths instead of appending a new batch.
+  const [editingBatchStamp, setEditingBatchStamp] = useState<number | null>(null);
+  // Track the last processed batch so the user can reopen the annotation editor.
+  const [lastBatch, setLastBatch] = useState<{
+    stamp: number;
+    files: File[];
+    cats: string[];
+    annotations: Record<number, Annotation[]>;
+    previewUrls: string[];
+  } | null>(null);
+
 
   // Reopen from history
   useEffect(() => {
