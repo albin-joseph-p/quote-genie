@@ -1047,8 +1047,11 @@ function Workspace() {
         onSubmit={(map) => {
           setAnnotationsForBatch(map);
           setAnnotatorOpen(false);
-          runProcessing(filesForAnnotator, categoriesForBatch, map);
+          const stamp = editingBatchStamp;
+          setEditingBatchStamp(null);
+          runProcessing(filesForAnnotator, categoriesForBatch, map, stamp ?? undefined);
         }}
+
       />
     </div>
   );
