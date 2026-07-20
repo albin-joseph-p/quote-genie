@@ -97,7 +97,18 @@ export const processQuotation = createServerFn({ method: "POST" })
       allowedSet.has((i.category ?? "").trim()),
     );
 
-    const invList = scopedInventory
+    const defaultBrandMap = data.defaultBrandByCategory ?? {};
+    // Sort so default-brand items for each category appear first — helps the AI
+    // prefer them on ties.
+    const sortedInventory = [...scopedInventory].sort((a, b) => {
+      const aCat = (a.category ?? "").trim();
+      const bCat = (b.category ?? "").trim();
+      const aDef = defaultBrandMap[aCat] && (a.brand ?? "").trim() === defaultBrandMap[aCat] ? 0 : 1;
+      const bDef = defaultBrandMap[bCat] && (b.brand ?? "").trim() === defaultBrandMap[bCat] ? 0 : 1;
+      if (aDef !== bDef) return aDef - bDef;
+      return 0;
+    });
+    const invList = sortedInventory
       .map((i) => `${i.item_code} | ${i.item_name} | ${i.category ?? ""} | ${i.brand ?? ""}`)
       .join("\n");
     const synList = (synonyms ?? [])
@@ -105,7 +116,12 @@ export const processQuotation = createServerFn({ method: "POST" })
       .join("\n");
     const categoryNames = Array.from(allowedSet).sort((a, b) => a.localeCompare(b));
     const catList = categoryNames.join(", ");
+    const defaultBrandList = Object.entries(defaultBrandMap)
+      .filter(([c]) => allowedSet.has(c.trim()))
+      .map(([c, b]) => `${c} => ${b}`)
+      .join("\n");
     const customInstructions = (instructionsRow?.instructions ?? "").trim();
+
 
 
     const systemPrompt = `You are an expert at reading customer quotation images (often handwritten or messy photos) for an electrical/sanitary/building-materials shop.
