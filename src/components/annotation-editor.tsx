@@ -46,6 +46,7 @@ const LABEL_BORDER: Record<AnnotationLabel, string> = {
   Category: "#3b82f6",
   Brand: "#10b981",
   Item: "#f59e0b",
+  Quantity: "#a855f7",
   "Group End": "#ef4444",
 };
 
