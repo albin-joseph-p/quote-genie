@@ -221,13 +221,30 @@ function Workspace() {
     batch: File[],
     cats: string[],
     annotationsMap: Record<number, Annotation[]>,
+    replaceStamp?: number,
   ) => {
+    // If we're re-processing an existing batch (edit annotations), clear its prior
+    // rows, previews (revoking blob URLs), and uploaded storage paths first.
+    if (replaceStamp != null) {
+      const stampPrefix = `${replaceStamp}-`;
+      setRows((rs) => rs.filter((r) => !r.id.startsWith(stampPrefix)));
+      const oldUrls = lastBatch?.previewUrls ?? [];
+      setPreviews((ps) =>
+        ps.filter((p) => {
+          const drop = oldUrls.includes(p.url);
+          if (drop && p.url.startsWith("blob:")) URL.revokeObjectURL(p.url);
+          return !drop;
+        }),
+      );
+      setUploadedPaths((paths) => paths.filter((p) => !p.startsWith(`${replaceStamp}/`)));
+    }
+
+    const batchStamp = replaceStamp ?? Date.now();
     const newPreviews = batch.map((f) => ({ url: URL.createObjectURL(f), name: f.name }));
     setPreviews((p) => [...p, ...newPreviews]);
 
     setLoading(true);
     setProgress({ done: 0, total: batch.length });
-    const batchStamp = Date.now();
     let succeeded = 0;
     let failed = 0;
     let extracted = 0;
@@ -292,12 +309,21 @@ function Workspace() {
 
     setLoading(false);
     setProgress(null);
+    // Remember this batch so the annotations can be reviewed/edited later.
+    setLastBatch({
+      stamp: batchStamp,
+      files: batch,
+      cats,
+      annotations: annotationsMap,
+      previewUrls: newPreviews.map((p) => p.url),
+    });
     if (succeeded > 0) {
       toast.success(`Extracted ${extracted} item${extracted === 1 ? "" : "s"} from ${succeeded} of ${batch.length} image${batch.length === 1 ? "" : "s"}.`);
     } else if (failed > 0) {
       toast.error("No images were processed. Please wait a moment and try again.");
     }
   };
+
 
   const clearAll = () => {
     previews.forEach((p) => URL.revokeObjectURL(p.url));
