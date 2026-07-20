@@ -49,6 +49,7 @@ const LABEL_BORDER: Record<AnnotationLabel, string> = {
   Item: "#f59e0b",
   Quantity: "#a855f7",
   "Group End": "#ef4444",
+  Exclude: "#111827",
 };
 
 export function AnnotationEditor({
