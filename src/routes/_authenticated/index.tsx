@@ -319,7 +319,6 @@ function Workspace() {
 
     const results = await Promise.allSettled(
       batch.map(async (file, idx) => {
-        const base64 = await fileToBase64(file);
         const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
         const path = `${batchStamp}/${idx}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const uploadP = supabase.storage
