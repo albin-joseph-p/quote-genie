@@ -142,7 +142,7 @@ Your job:
 5. Otherwise pick the best match from inventory using this STRICT priority:
    a. SIZE / DIMENSION / GAUGE / CLASS / AMPERAGE tokens MUST match exactly. "2 1/2" ≠ "1 1/2", "2.5" ≠ "1.5", "20mm" ≠ "25mm", "B class" ≠ "A class", "20A" ≠ "16A" ≠ "6A". If no inventory item shares the exact size/amperage, set item_code to null — do NOT substitute a different size.
    b. Product type / material must match. Distinctions defined in GLOBAL USER INSTRUCTIONS (e.g. "One way ≠ Two way", "Bond ≠ Bend", "PVC ≠ UPVC ≠ CPVC") are HARD constraints — never cross them. A "Two way switch" MUST NOT be matched to a "1 Way" inventory item, and vice versa.
-   c. Only after (a) and (b) are satisfied, use brand / other descriptors as tiebreakers.
+   c. Only after (a) and (b) are satisfied, use brand as a tiebreaker. If the item's category has a DEFAULT BRAND listed below, you MUST prefer inventory rows of that brand whenever they also satisfy (a) and (b) — pick a non-default-brand row only when no default-brand row satisfies the size and type rules.
 6. Normalize fractions before comparing: "2 1/2" = "2.5" = "2-1/2" = "2½". "1 1/2" = "1.5".
 7. If multiple inventory items match the exact size and type, pick the closest by name; if none match, RETURN null rather than a wrong-size or wrong-type item. A null match is BETTER than a violation of a GLOBAL USER INSTRUCTION.
 8. Classify each line into ONE of the ALLOWED CATEGORIES below. The Master Inventory shown to you has ALREADY been filtered to only these categories — you MUST NOT match items outside them. If no inventory item fits within these categories, set itemCode to null and category to null.
