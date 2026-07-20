@@ -185,6 +185,36 @@ export function AnnotationEditor({
     setAnnots((m) => ({ ...m, [idx]: updater(m[idx] ?? []) }));
   };
 
+  const validateAnnotations = (list: Annotation[]) => {
+    const items = list.filter((a) => a.label === "Item").length;
+    const qty = list.filter((a) => a.label === "Quantity").length;
+    const groupEnds = list.filter((a) => a.label === "Group End").length;
+    const closable = list.filter(
+      (a) => a.label === "Category" || a.label === "Brand" || a.label === "Item",
+    ).length;
+    if (closable > 0 && groupEnds < closable) {
+      return `Add a "Group End" marker for every Category / Brand / Item (need ${closable}, have ${groupEnds}).`;
+    }
+    if (items !== qty) {
+      return `Each Item needs a matching Quantity annotation (items: ${items}, quantities: ${qty}).`;
+    }
+    return null;
+  };
+
+  const handleSubmit = () => {
+    for (let i = 0; i < files.length; i++) {
+      const list = annots[i] ?? [];
+      if (list.length === 0) continue;
+      const err = validateAnnotations(list);
+      if (err) {
+        setIdx(i);
+        toast.error(`Image ${i + 1}: ${err}`);
+        return;
+      }
+    }
+    onSubmit(annots);
+  };
+
   const relFromEvent = (e: React.PointerEvent) => {
     const el = imgRef.current;
     if (!el) return null;
