@@ -79,6 +79,27 @@ export type Database = {
         }
         Relationships: []
       }
+      category_defaults: {
+        Row: {
+          brand: string
+          category: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          brand: string
+          category: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          brand?: string
+          category?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       inventory: {
         Row: {
           brand: string
