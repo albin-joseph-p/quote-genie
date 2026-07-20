@@ -161,7 +161,11 @@ ${catList || "(none defined yet — set category to null)"}
 ${invList || "(empty)"}
 
 == SYNONYM MAP (customer_term => item_code) ==
-${synList || "(none)"}`;
+${synList || "(none)"}
+
+== DEFAULT BRAND PER CATEGORY (prefer these brands on ties) ==
+${defaultBrandList || "(none set)"}`;
+
 
 
     const annotations = data.annotations ?? [];
