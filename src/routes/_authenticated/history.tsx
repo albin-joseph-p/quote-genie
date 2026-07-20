@@ -99,7 +99,7 @@ function HistoryPage() {
   const reuse = (q: Quote) => {
     sessionStorage.setItem(
       "reuse-quotation",
-      JSON.stringify({ customer_name: q.customer_name, items: q.items }),
+      JSON.stringify({ customer_name: q.customer_name, items: q.items, image_urls: q.image_urls }),
     );
     navigate({ to: "/" });
   };
