@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Trash2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Hand, Maximize, Minimize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,9 +19,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export type AnnotationLabel = "Category" | "Brand" | "Item" | "Group End";
+export type AnnotationLabel = "Category" | "Brand" | "Item" | "Quantity" | "Group End";
 
-export const ANNOTATION_LABELS: AnnotationLabel[] = ["Category", "Brand", "Item", "Group End"];
+export const ANNOTATION_LABELS: AnnotationLabel[] = ["Category", "Brand", "Item", "Quantity", "Group End"];
 
 export type Annotation = {
   id: string;
@@ -37,6 +38,7 @@ const LABEL_COLORS: Record<AnnotationLabel, string> = {
   Category: "rgba(59,130,246,0.35)", // blue
   Brand: "rgba(16,185,129,0.35)", // green
   Item: "rgba(245,158,11,0.35)", // amber
+  Quantity: "rgba(168,85,247,0.35)", // purple
   "Group End": "rgba(239,68,68,0.35)", // red
 };
 
@@ -44,6 +46,7 @@ const LABEL_BORDER: Record<AnnotationLabel, string> = {
   Category: "#3b82f6",
   Brand: "#10b981",
   Item: "#f59e0b",
+  Quantity: "#a855f7",
   "Group End": "#ef4444",
 };
 
@@ -182,6 +185,36 @@ export function AnnotationEditor({
     setAnnots((m) => ({ ...m, [idx]: updater(m[idx] ?? []) }));
   };
 
+  const validateAnnotations = (list: Annotation[]) => {
+    const items = list.filter((a) => a.label === "Item").length;
+    const qty = list.filter((a) => a.label === "Quantity").length;
+    const groupEnds = list.filter((a) => a.label === "Group End").length;
+    const closable = list.filter(
+      (a) => a.label === "Category" || a.label === "Brand" || a.label === "Item",
+    ).length;
+    if (closable > 0 && groupEnds < closable) {
+      return `Add a "Group End" marker for every Category / Brand / Item (need ${closable}, have ${groupEnds}).`;
+    }
+    if (items !== qty) {
+      return `Each Item needs a matching Quantity annotation (items: ${items}, quantities: ${qty}).`;
+    }
+    return null;
+  };
+
+  const handleSubmit = () => {
+    for (let i = 0; i < files.length; i++) {
+      const list = annots[i] ?? [];
+      if (list.length === 0) continue;
+      const err = validateAnnotations(list);
+      if (err) {
+        setIdx(i);
+        toast.error(`Image ${i + 1}: ${err}`);
+        return;
+      }
+    }
+    onSubmit(annots);
+  };
+
   const relFromEvent = (e: React.PointerEvent) => {
     const el = imgRef.current;
     if (!el) return null;
@@ -283,7 +316,8 @@ export function AnnotationEditor({
           <DialogTitle>Annotate image {idx + 1} of {files.length}</DialogTitle>
           <DialogDescription>
             Drag to draw a box. Scroll to zoom, hold <b>Space</b> or use the hand tool to pan.
-            Use <b>Group End</b> to mark where a group stops.
+            Every <b>Category</b>, <b>Brand</b>, and <b>Item</b> must be closed with a <b>Group End</b>.
+            Each <b>Item</b> also needs a paired <b>Quantity</b> annotation.
           </DialogDescription>
           <button
             type="button"
@@ -478,7 +512,7 @@ export function AnnotationEditor({
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={() => onSubmit(annots)}>Process with annotations</Button>
+            <Button onClick={handleSubmit}>Process with annotations</Button>
           </div>
         </DialogFooter>
         <div
