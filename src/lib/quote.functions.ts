@@ -18,7 +18,9 @@ const Input = z.object({
   mimeType: z.string().min(1),
   allowedCategories: z.array(z.string()).min(1),
   annotations: z.array(AnnotationSchema).optional(),
+  defaultBrandByCategory: z.record(z.string(), z.string()).optional(),
 });
+
 
 export type MatchedItem = {
   extractedText: string;
