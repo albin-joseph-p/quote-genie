@@ -208,6 +208,56 @@ function Workspace() {
     return btoa(binary);
   };
 
+  // Physically black out "Exclude" annotation regions so the AI cannot read them,
+  // regardless of how well it obeys the prompt. Returns { base64, mimeType }.
+  const maskExcludedRegions = async (
+    file: File,
+    annotations: Annotation[],
+  ): Promise<{ base64: string; mimeType: string }> => {
+    const excludes = annotations.filter((a) => a.label === "Exclude");
+    if (excludes.length === 0) {
+      return { base64: await fileToBase64(file), mimeType: file.type };
+    }
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = url;
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return { base64: await fileToBase64(file), mimeType: file.type };
+      ctx.drawImage(img, 0, 0);
+      ctx.fillStyle = "#000000";
+      for (const a of excludes) {
+        ctx.fillRect(
+          Math.round(a.x * canvas.width),
+          Math.round(a.y * canvas.height),
+          Math.round(a.w * canvas.width),
+          Math.round(a.h * canvas.height),
+        );
+      }
+      const blob: Blob = await new Promise((resolve, reject) =>
+        canvas.toBlob(
+          (b) => (b ? resolve(b) : reject(new Error("canvas encode failed"))),
+          "image/jpeg",
+          0.92,
+        ),
+      );
+      const buf = await blob.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = "";
+      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+      return { base64: btoa(binary), mimeType: "image/jpeg" };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  };
+
   const onFiles = async (fileList: File[], categoriesOverride?: string[]) => {
     const images = fileList.filter((f) => f.type.startsWith("image/"));
     const skipped = fileList.length - images.length;
@@ -269,7 +319,6 @@ function Workspace() {
 
     const results = await Promise.allSettled(
       batch.map(async (file, idx) => {
-        const base64 = await fileToBase64(file);
         const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
         const path = `${batchStamp}/${idx}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const uploadP = supabase.storage
@@ -278,15 +327,19 @@ function Workspace() {
           .then((r) => (r.error ? null : path))
           .catch(() => null);
         const anns = (annotationsMap[idx] ?? []).map(({ id: _id, ...rest }) => rest);
+        const { base64, mimeType } = await maskExcludedRegions(file, annotationsMap[idx] ?? []);
+        // Don't also send the Exclude boxes as annotation hints — the pixels are
+        // already blacked out, so the AI doesn't need to know about them.
+        const annsForAi = anns.filter((a) => a.label !== "Exclude");
         const [res, storagePath] = await Promise.all([
           process({
             data: {
               imageBase64: base64,
-              mimeType: file.type,
+              mimeType,
               allowedCategories: cats,
               defaultBrandByCategory,
 
-              annotations: anns,
+              annotations: annsForAi,
             },
           }),
           uploadP,
