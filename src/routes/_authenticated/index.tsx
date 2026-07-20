@@ -803,7 +803,7 @@ function Workspace() {
                     key={catName}
                     categoryName={catName}
                     known={categoryExists.has(catName)}
-                    selectedBrand={brandByCategory[catName] ?? ""}
+                    selectedBrand={brandByCategory[catName] ?? defaultBrandByCategory[catName] ?? ""}
                     brands={brandsByCategory[catName] ?? []}
                     onSelectBrand={(brand) => applyBrandToCategory(catName, brand)}
                   />
