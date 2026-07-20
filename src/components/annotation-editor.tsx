@@ -19,9 +19,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export type AnnotationLabel = "Category" | "Brand" | "Item" | "Group End";
+export type AnnotationLabel = "Category" | "Brand" | "Item" | "Quantity" | "Group End";
 
-export const ANNOTATION_LABELS: AnnotationLabel[] = ["Category", "Brand", "Item", "Group End"];
+export const ANNOTATION_LABELS: AnnotationLabel[] = ["Category", "Brand", "Item", "Quantity", "Group End"];
 
 export type Annotation = {
   id: string;
@@ -38,6 +38,7 @@ const LABEL_COLORS: Record<AnnotationLabel, string> = {
   Category: "rgba(59,130,246,0.35)", // blue
   Brand: "rgba(16,185,129,0.35)", // green
   Item: "rgba(245,158,11,0.35)", // amber
+  Quantity: "rgba(168,85,247,0.35)", // purple
   "Group End": "rgba(239,68,68,0.35)", // red
 };
 
