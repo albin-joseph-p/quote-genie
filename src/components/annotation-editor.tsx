@@ -19,9 +19,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export type AnnotationLabel = "Category" | "Brand" | "Item" | "Quantity" | "Group End";
+export type AnnotationLabel = "Category" | "Brand" | "Item" | "Quantity" | "Group End" | "Exclude";
 
-export const ANNOTATION_LABELS: AnnotationLabel[] = ["Category", "Brand", "Item", "Quantity", "Group End"];
+export const ANNOTATION_LABELS: AnnotationLabel[] = ["Category", "Brand", "Item", "Quantity", "Group End", "Exclude"];
 
 export type Annotation = {
   id: string;
@@ -40,6 +40,7 @@ const LABEL_COLORS: Record<AnnotationLabel, string> = {
   Item: "rgba(245,158,11,0.35)", // amber
   Quantity: "rgba(168,85,247,0.35)", // purple
   "Group End": "rgba(239,68,68,0.35)", // red
+  Exclude: "rgba(17,24,39,0.75)", // near-black mask
 };
 
 const LABEL_BORDER: Record<AnnotationLabel, string> = {
@@ -48,6 +49,7 @@ const LABEL_BORDER: Record<AnnotationLabel, string> = {
   Item: "#f59e0b",
   Quantity: "#a855f7",
   "Group End": "#ef4444",
+  Exclude: "#111827",
 };
 
 export function AnnotationEditor({
