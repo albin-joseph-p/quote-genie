@@ -671,11 +671,24 @@ function Workspace() {
                         />
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        fileRef.current?.click();
+                      }}
+                      className="h-20 w-20 rounded-lg border-2 border-dashed border-border hover:border-primary hover:bg-accent/40 flex flex-col items-center justify-center text-primary transition"
+                      title="Add more images"
+                    >
+                      <Upload className="h-5 w-5" />
+                      <span className="text-[10px] mt-1 font-medium">Add more</span>
+                    </button>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {previews.length} uploaded · click or drop to add more (up to {MAX_IMAGES})
+                    {previews.length} uploaded · click Add more or drop files to append (up to {MAX_IMAGES} per batch)
                   </p>
                 </div>
+
               ) : (
                 <div className="flex flex-col items-center gap-3 py-2">
                   <div className="w-12 h-12 rounded-full bg-card shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
