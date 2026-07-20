@@ -1007,6 +1007,15 @@ function Workspace() {
       <Dialog open={!!zoomed} onOpenChange={(o) => !o && setZoomed(null)}>
         <DialogContent className="max-w-[95vw] w-fit p-2 sm:p-3">
           <DialogTitle className="sr-only">{zoomed?.name ?? "Image preview"}</DialogTitle>
+          <button
+            type="button"
+            onClick={() => setZoomed(null)}
+            aria-label="Close image preview"
+            title="Close"
+            className="absolute top-2 left-2 z-20 inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-background/90 backdrop-blur shadow hover:bg-muted"
+          >
+            <X className="h-4 w-4" />
+          </button>
           {zoomed && <ZoomPanViewer src={zoomed.url} alt={zoomed.name} />}
         </DialogContent>
       </Dialog>
