@@ -316,7 +316,8 @@ export function AnnotationEditor({
           <DialogTitle>Annotate image {idx + 1} of {files.length}</DialogTitle>
           <DialogDescription>
             Drag to draw a box. Scroll to zoom, hold <b>Space</b> or use the hand tool to pan.
-            Use <b>Group End</b> to mark where a group stops.
+            Every <b>Category</b>, <b>Brand</b>, and <b>Item</b> must be closed with a <b>Group End</b>.
+            Each <b>Item</b> also needs a paired <b>Quantity</b> annotation.
           </DialogDescription>
           <button
             type="button"
