@@ -5,7 +5,7 @@ import { callGeminiAiStudio } from "./google-ai.server";
 
 
 const AnnotationSchema = z.object({
-  label: z.enum(["Category", "Brand", "Item", "Quantity", "Group End"]),
+  label: z.enum(["Category", "Brand", "Item", "Quantity", "Group End", "Exclude"]),
   x: z.number(),
   y: z.number(),
   w: z.number(),
