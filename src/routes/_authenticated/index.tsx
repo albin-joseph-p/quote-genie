@@ -91,6 +91,18 @@ function Workspace() {
   const [filesForAnnotator, setFilesForAnnotator] = useState<File[]>([]);
   const [annotationsForBatch, setAnnotationsForBatch] = useState<Record<number, Annotation[]>>({});
   const [categoriesForBatch, setCategoriesForBatch] = useState<string[]>([]);
+  // Editing mode: when set, submitting the annotator replaces the given batch's
+  // rows/previews/paths instead of appending a new batch.
+  const [editingBatchStamp, setEditingBatchStamp] = useState<number | null>(null);
+  // Track the last processed batch so the user can reopen the annotation editor.
+  const [lastBatch, setLastBatch] = useState<{
+    stamp: number;
+    files: File[];
+    cats: string[];
+    annotations: Record<number, Annotation[]>;
+    previewUrls: string[];
+  } | null>(null);
+
 
   // Reopen from history
   useEffect(() => {
@@ -209,13 +221,30 @@ function Workspace() {
     batch: File[],
     cats: string[],
     annotationsMap: Record<number, Annotation[]>,
+    replaceStamp?: number,
   ) => {
+    // If we're re-processing an existing batch (edit annotations), clear its prior
+    // rows, previews (revoking blob URLs), and uploaded storage paths first.
+    if (replaceStamp != null) {
+      const stampPrefix = `${replaceStamp}-`;
+      setRows((rs) => rs.filter((r) => !r.id.startsWith(stampPrefix)));
+      const oldUrls = lastBatch?.previewUrls ?? [];
+      setPreviews((ps) =>
+        ps.filter((p) => {
+          const drop = oldUrls.includes(p.url);
+          if (drop && p.url.startsWith("blob:")) URL.revokeObjectURL(p.url);
+          return !drop;
+        }),
+      );
+      setUploadedPaths((paths) => paths.filter((p) => !p.startsWith(`${replaceStamp}/`)));
+    }
+
+    const batchStamp = replaceStamp ?? Date.now();
     const newPreviews = batch.map((f) => ({ url: URL.createObjectURL(f), name: f.name }));
     setPreviews((p) => [...p, ...newPreviews]);
 
     setLoading(true);
     setProgress({ done: 0, total: batch.length });
-    const batchStamp = Date.now();
     let succeeded = 0;
     let failed = 0;
     let extracted = 0;
@@ -280,12 +309,21 @@ function Workspace() {
 
     setLoading(false);
     setProgress(null);
+    // Remember this batch so the annotations can be reviewed/edited later.
+    setLastBatch({
+      stamp: batchStamp,
+      files: batch,
+      cats,
+      annotations: annotationsMap,
+      previewUrls: newPreviews.map((p) => p.url),
+    });
     if (succeeded > 0) {
       toast.success(`Extracted ${extracted} item${extracted === 1 ? "" : "s"} from ${succeeded} of ${batch.length} image${batch.length === 1 ? "" : "s"}.`);
     } else if (failed > 0) {
       toast.error("No images were processed. Please wait a moment and try again.");
     }
   };
+
 
   const clearAll = () => {
     previews.forEach((p) => URL.revokeObjectURL(p.url));
@@ -295,7 +333,10 @@ function Workspace() {
     setUploadedPaths([]);
     setCustomerName("");
     setSelectedCategories([]);
+    setLastBatch(null);
+    setEditingBatchStamp(null);
   };
+
 
   const confirmCategoriesAndProcess = () => {
     if (selectedCategories.length === 0) {
@@ -688,7 +729,26 @@ function Workspace() {
                   <p className="text-xs text-muted-foreground">
                     {previews.length} uploaded · click Add more or drop files to append (up to {MAX_IMAGES} per batch)
                   </p>
+                  {lastBatch && lastBatch.files.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFilesForAnnotator(lastBatch.files);
+                        setCategoriesForBatch(lastBatch.cats);
+                        setAnnotationsForBatch(lastBatch.annotations);
+                        setEditingBatchStamp(lastBatch.stamp);
+                        setAnnotatorOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                      View / edit annotations
+                    </Button>
+                  )}
                 </div>
+
 
               ) : (
                 <div className="flex flex-col items-center gap-3 py-2">
@@ -1006,8 +1066,11 @@ function Workspace() {
         onSubmit={(map) => {
           setAnnotationsForBatch(map);
           setAnnotatorOpen(false);
-          runProcessing(filesForAnnotator, categoriesForBatch, map);
+          const stamp = editingBatchStamp;
+          setEditingBatchStamp(null);
+          runProcessing(filesForAnnotator, categoriesForBatch, map, stamp ?? undefined);
         }}
+
       />
     </div>
   );
