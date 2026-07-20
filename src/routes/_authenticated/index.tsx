@@ -155,7 +155,25 @@ function Workspace() {
       fetchAllRows<InventoryRow>("inventory", "item_code,item_name,category,brand"),
   });
 
+  const defaultsQ = useQuery({
+    queryKey: ["category_defaults"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("category_defaults")
+        .select("category,brand");
+      if (error) throw error;
+      return (data ?? []) as { category: string; brand: string }[];
+    },
+  });
+
+  const defaultBrandByCategory = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const d of defaultsQ.data ?? []) m[d.category] = d.brand;
+    return m;
+  }, [defaultsQ.data]);
+
   const inventory = inventoryQ.data ?? [];
+
 
   // Categories and brands are derived from Master Inventory so this workspace,
   // the Categories tab, and the AI prompt always share one source of truth.
