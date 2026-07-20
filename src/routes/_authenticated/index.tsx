@@ -38,6 +38,7 @@ import { processQuotation } from "@/lib/quote.functions";
 import { cn } from "@/lib/utils";
 import { fetchAllRows } from "@/lib/fetch-all";
 import { AnnotationEditor, type Annotation } from "@/components/annotation-editor";
+import { ZoomPanViewer } from "@/components/zoom-pan-viewer";
 
 type InventoryRow = {
   item_code: string;
