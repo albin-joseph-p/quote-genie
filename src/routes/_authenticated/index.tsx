@@ -284,6 +284,8 @@ function Workspace() {
               imageBase64: base64,
               mimeType: file.type,
               allowedCategories: cats,
+              defaultBrandByCategory,
+
               annotations: anns,
             },
           }),
