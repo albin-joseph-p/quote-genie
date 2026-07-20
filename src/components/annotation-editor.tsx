@@ -481,7 +481,7 @@ export function AnnotationEditor({
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={() => onSubmit(annots)}>Process with annotations</Button>
+            <Button onClick={handleSubmit}>Process with annotations</Button>
           </div>
         </DialogFooter>
         <div
