@@ -97,7 +97,11 @@ function Workspace() {
     if (!raw) return;
     sessionStorage.removeItem("reuse-quotation");
     try {
-      const parsed = JSON.parse(raw) as { customer_name?: string; items?: Array<{ extractedText: string; itemCode: string | null; category: string | null; qty: number }> };
+      const parsed = JSON.parse(raw) as {
+        customer_name?: string;
+        items?: Array<{ extractedText: string; itemCode: string | null; category: string | null; qty: number }>;
+        image_urls?: string[];
+      };
       if (parsed.customer_name) setCustomerName(parsed.customer_name);
       const stamp = Date.now();
       setRows(
@@ -110,6 +114,22 @@ function Workspace() {
           aiItemCode: it.itemCode,
         })),
       );
+      const paths = parsed.image_urls ?? [];
+      if (paths.length > 0) {
+        setUploadedPaths(paths);
+        supabase.storage
+          .from("quotation-images")
+          .createSignedUrls(paths, 60 * 60)
+          .then(({ data, error }) => {
+            if (error || !data) return;
+            const previewsFromHistory = data
+              .map((d, i) => (d.signedUrl ? { url: d.signedUrl, name: paths[i].split("/").pop() ?? `image-${i}` } : null))
+              .filter((x): x is { url: string; name: string } => x !== null);
+            if (previewsFromHistory.length > 0) {
+              setPreviews((p) => [...p, ...previewsFromHistory]);
+            }
+          });
+      }
       toast.success("Loaded quotation from history");
     } catch (e) {
       console.error(e);
