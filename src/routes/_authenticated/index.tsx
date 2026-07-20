@@ -38,6 +38,7 @@ import { processQuotation } from "@/lib/quote.functions";
 import { cn } from "@/lib/utils";
 import { fetchAllRows } from "@/lib/fetch-all";
 import { AnnotationEditor, type Annotation } from "@/components/annotation-editor";
+import { ZoomPanViewer } from "@/components/zoom-pan-viewer";
 
 type InventoryRow = {
   item_code: string;
@@ -873,17 +874,10 @@ function Workspace() {
       <Dialog open={!!zoomed} onOpenChange={(o) => !o && setZoomed(null)}>
         <DialogContent className="max-w-[95vw] w-fit p-2 sm:p-3">
           <DialogTitle className="sr-only">{zoomed?.name ?? "Image preview"}</DialogTitle>
-          {zoomed && (
-            <div className="flex items-center justify-center max-h-[85vh]">
-              <img
-                src={zoomed.url}
-                alt={zoomed.name}
-                className="max-w-full max-h-[85vh] w-auto h-auto object-contain"
-              />
-            </div>
-          )}
+          {zoomed && <ZoomPanViewer src={zoomed.url} alt={zoomed.name} />}
         </DialogContent>
       </Dialog>
+
 
 
       <Dialog
