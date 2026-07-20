@@ -874,17 +874,17 @@ function Workspace() {
         <DialogContent className="max-w-[95vw] w-fit p-2 sm:p-3">
           <DialogTitle className="sr-only">{zoomed?.name ?? "Image preview"}</DialogTitle>
           {zoomed && (
-            <div className="overflow-auto max-h-[85vh]">
+            <div className="flex items-center justify-center max-h-[85vh]">
               <img
                 src={zoomed.url}
                 alt={zoomed.name}
-                className="max-w-none h-auto"
-                style={{ minWidth: "min(95vw, 1200px)" }}
+                className="max-w-full max-h-[85vh] w-auto h-auto object-contain"
               />
             </div>
           )}
         </DialogContent>
       </Dialog>
+
 
       <Dialog
         open={categoryDialogOpen}
