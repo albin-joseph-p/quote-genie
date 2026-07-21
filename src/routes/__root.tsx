@@ -16,7 +16,8 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, FileText, Receipt } from "lucide-react";
+import { useAppMode, type AppMode } from "@/lib/app-mode";
 
 function NotFoundComponent() {
   return (
@@ -155,19 +156,12 @@ function AppShell() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b bg-card">
-        <div className="mx-auto max-w-7xl px-6 h-16 flex items-center gap-6">
+        <div className="mx-auto max-w-7xl px-6 min-h-16 py-2 flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold">O</div>
             <span className="font-semibold tracking-tight">Orion Sales Corporation</span>
           </Link>
-          <nav className="flex items-center gap-1 ml-4">
-            <NavTab to="/" label="Quotation Workspace" />
-            <NavTab to="/purchases" label="Purchase Entry" />
-            <NavTab to="/history" label="History" />
-            <NavTab to="/categories" label="Categories" />
-            <NavTab to="/synonyms" label="Synonyms" />
-            <NavTab to="/master" label="Master Inventory" />
-          </nav>
+          <ModeAwareNav />
           <div className="ml-auto">
             <AccountMenu />
           </div>
@@ -176,6 +170,55 @@ function AppShell() {
       <main className="flex-1">
         <Outlet />
       </main>
+    </div>
+  );
+}
+
+function ModeAwareNav() {
+  const [mode] = useAppMode();
+  return (
+    <nav className="flex items-center gap-1 ml-4">
+      {mode === "quotation" ? (
+        <NavTab to="/" label="Quotation Workspace" />
+      ) : (
+        <NavTab to="/purchases" label="Purchase Entry" />
+      )}
+      <NavTab to="/history" label="History" />
+      <NavTab to="/categories" label="Categories" />
+      <NavTab to="/synonyms" label="Synonyms" />
+      <NavTab to="/master" label="Master Inventory" />
+    </nav>
+  );
+}
+
+function ModeToggle() {
+  const [mode, setMode] = useAppMode();
+  const navigate = useNavigate();
+  const switchTo = (m: AppMode) => {
+    if (m === mode) return;
+    setMode(m);
+    navigate({ to: m === "quotation" ? "/" : "/purchases" });
+  };
+  return (
+    <div className="inline-flex items-center rounded-md border bg-muted/40 p-0.5 text-xs">
+      <button
+        type="button"
+        onClick={() => switchTo("quotation")}
+        className={`flex items-center gap-1 px-2 py-1 rounded-sm transition-colors ${
+          mode === "quotation" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        <FileText className="h-3 w-3" /> Quotation
+      </button>
+      <button
+        type="button"
+        onClick={() => switchTo("purchase")}
+        className={`flex items-center gap-1 px-2 py-1 rounded-sm transition-colors ${
+          mode === "purchase" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        <Receipt className="h-3 w-3" /> Purchase
+      </button>
     </div>
   );
 }
@@ -214,12 +257,15 @@ function AccountMenu() {
     );
   }
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-xs text-muted-foreground hidden sm:inline">{email}</span>
-      <Button variant="ghost" size="sm" onClick={signOut}>
-        <LogOut className="h-4 w-4 mr-1" />
-        Sign out
-      </Button>
+    <div className="flex flex-col items-end gap-1.5">
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-muted-foreground hidden sm:inline">{email}</span>
+        <Button variant="ghost" size="sm" onClick={signOut}>
+          <LogOut className="h-4 w-4 mr-1" />
+          Sign out
+        </Button>
+      </div>
+      <ModeToggle />
     </div>
   );
 }
