@@ -142,7 +142,7 @@ Return ONLY valid JSON, no markdown fences, shape:
 {
   "supplierName": "<string>",
   "invoiceNumber": "<string>",
-  "invoiceDate": "<string as shown>",
+  "invoiceDate": "<MUST be formatted as dd-MM-yyyy, e.g. 07-03-2025. Look carefully for labels like Date, Invoice Date, Bill Date, Dt, Dated. If only 2-digit year is shown assume 20YY. If no date found, return empty string.>",
   "items": [
     {
       "itemName": "<string>",
