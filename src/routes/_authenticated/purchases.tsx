@@ -98,7 +98,7 @@ function PurchaseWorkspace() {
   const [uploadedPaths, setUploadedPaths] = useState<string[]>([]);
   const [supplierName, setSupplierName] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [invoiceDate, setInvoiceDate] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState<string>(() => format(new Date(), "dd-MM-yyyy"));
   const [fields, setFields] = useState<PurchaseFieldKey[]>(DEFAULT_FIELDS);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
