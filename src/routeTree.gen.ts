@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedSynonymsRouteImport } from './routes/_authenticated/synonyms'
+import { Route as AuthenticatedSuppliersRouteImport } from './routes/_authenticated/suppliers'
 import { Route as AuthenticatedPurchasesRouteImport } from './routes/_authenticated/purchases'
 import { Route as AuthenticatedMasterRouteImport } from './routes/_authenticated/master'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
@@ -45,6 +46,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
 const AuthenticatedSynonymsRoute = AuthenticatedSynonymsRouteImport.update({
   id: '/synonyms',
   path: '/synonyms',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSuppliersRoute = AuthenticatedSuppliersRouteImport.update({
+  id: '/suppliers',
+  path: '/suppliers',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPurchasesRoute = AuthenticatedPurchasesRouteImport.update({
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/history': typeof AuthenticatedHistoryRoute
   '/master': typeof AuthenticatedMasterRoute
   '/purchases': typeof AuthenticatedPurchasesRoute
+  '/suppliers': typeof AuthenticatedSuppliersRoute
   '/synonyms': typeof AuthenticatedSynonymsRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/history': typeof AuthenticatedHistoryRoute
   '/master': typeof AuthenticatedMasterRoute
   '/purchases': typeof AuthenticatedPurchasesRoute
+  '/suppliers': typeof AuthenticatedSuppliersRoute
   '/synonyms': typeof AuthenticatedSynonymsRoute
   '/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/master': typeof AuthenticatedMasterRoute
   '/_authenticated/purchases': typeof AuthenticatedPurchasesRoute
+  '/_authenticated/suppliers': typeof AuthenticatedSuppliersRoute
   '/_authenticated/synonyms': typeof AuthenticatedSynonymsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/master'
     | '/purchases'
+    | '/suppliers'
     | '/synonyms'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -160,6 +170,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/master'
     | '/purchases'
+    | '/suppliers'
     | '/synonyms'
     | '/'
     | '/.lovable/oauth/consent'
@@ -175,6 +186,7 @@ export interface FileRouteTypes {
     | '/_authenticated/history'
     | '/_authenticated/master'
     | '/_authenticated/purchases'
+    | '/_authenticated/suppliers'
     | '/_authenticated/synonyms'
     | '/_authenticated/'
     | '/.lovable/oauth/consent'
@@ -226,6 +238,13 @@ declare module '@tanstack/react-router' {
       path: '/synonyms'
       fullPath: '/synonyms'
       preLoaderRoute: typeof AuthenticatedSynonymsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/suppliers': {
+      id: '/_authenticated/suppliers'
+      path: '/suppliers'
+      fullPath: '/suppliers'
+      preLoaderRoute: typeof AuthenticatedSuppliersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/purchases': {
@@ -292,6 +311,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedMasterRoute: typeof AuthenticatedMasterRoute
   AuthenticatedPurchasesRoute: typeof AuthenticatedPurchasesRoute
+  AuthenticatedSuppliersRoute: typeof AuthenticatedSuppliersRoute
   AuthenticatedSynonymsRoute: typeof AuthenticatedSynonymsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
@@ -301,6 +321,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedMasterRoute: AuthenticatedMasterRoute,
   AuthenticatedPurchasesRoute: AuthenticatedPurchasesRoute,
+  AuthenticatedSuppliersRoute: AuthenticatedSuppliersRoute,
   AuthenticatedSynonymsRoute: AuthenticatedSynonymsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
