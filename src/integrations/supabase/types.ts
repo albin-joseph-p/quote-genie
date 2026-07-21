@@ -127,6 +127,45 @@ export type Database = {
         }
         Relationships: []
       }
+      purchases: {
+        Row: {
+          captured_fields: string[]
+          created_at: string
+          id: string
+          image_urls: string[]
+          invoice_date: string
+          invoice_number: string
+          item_count: number
+          items: Json
+          supplier_name: string
+          updated_at: string
+        }
+        Insert: {
+          captured_fields?: string[]
+          created_at?: string
+          id?: string
+          image_urls?: string[]
+          invoice_date?: string
+          invoice_number?: string
+          item_count?: number
+          items?: Json
+          supplier_name?: string
+          updated_at?: string
+        }
+        Update: {
+          captured_fields?: string[]
+          created_at?: string
+          id?: string
+          image_urls?: string[]
+          invoice_date?: string
+          invoice_number?: string
+          item_count?: number
+          items?: Json
+          supplier_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       quotations: {
         Row: {
           created_at: string
