@@ -786,24 +786,35 @@ function Workspace() {
               ) : previews.length > 0 ? (
                 <div className="flex flex-col items-center gap-3">
                   <div className="flex flex-wrap justify-center gap-2">
-                    {previews.map((p, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setZoomed(p);
-                        }}
-                        className="relative"
-                        title={`Click to zoom · ${p.name}`}
-                      >
-                        <img
-                          src={p.url}
-                          alt={p.name}
-                          className="h-20 w-20 object-cover rounded-lg border hover:ring-2 hover:ring-primary transition"
-                        />
-                      </button>
-                    ))}
+                    {previews.map((p, i) => {
+                      const isPdf = p.name.toLowerCase().endsWith(".pdf");
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isPdf) window.open(p.url, "_blank");
+                            else setZoomed(p);
+                          }}
+                          className="relative"
+                          title={isPdf ? `Open PDF · ${p.name}` : `Click to zoom · ${p.name}`}
+                        >
+                          {isPdf ? (
+                            <div className="h-20 w-20 flex flex-col items-center justify-center rounded-lg border bg-muted text-[10px] font-semibold text-muted-foreground hover:ring-2 hover:ring-primary transition">
+                              <span className="text-base">PDF</span>
+                              <span className="truncate max-w-[70px] px-1">{p.name}</span>
+                            </div>
+                          ) : (
+                            <img
+                              src={p.url}
+                              alt={p.name}
+                              className="h-20 w-20 object-cover rounded-lg border hover:ring-2 hover:ring-primary transition"
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
                     <button
                       type="button"
                       onClick={(e) => {
