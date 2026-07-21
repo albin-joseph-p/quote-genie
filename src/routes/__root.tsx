@@ -161,14 +161,7 @@ function AppShell() {
             <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold">O</div>
             <span className="font-semibold tracking-tight">Orion Sales Corporation</span>
           </Link>
-          <nav className="flex items-center gap-1 ml-4">
-            <NavTab to="/" label="Quotation Workspace" />
-            <NavTab to="/purchases" label="Purchase Entry" />
-            <NavTab to="/history" label="History" />
-            <NavTab to="/categories" label="Categories" />
-            <NavTab to="/synonyms" label="Synonyms" />
-            <NavTab to="/master" label="Master Inventory" />
-          </nav>
+          <ModeAwareNav />
           <div className="ml-auto">
             <AccountMenu />
           </div>
@@ -177,6 +170,55 @@ function AppShell() {
       <main className="flex-1">
         <Outlet />
       </main>
+    </div>
+  );
+}
+
+function ModeAwareNav() {
+  const [mode] = useAppMode();
+  return (
+    <nav className="flex items-center gap-1 ml-4">
+      {mode === "quotation" ? (
+        <NavTab to="/" label="Quotation Workspace" />
+      ) : (
+        <NavTab to="/purchases" label="Purchase Entry" />
+      )}
+      <NavTab to="/history" label="History" />
+      <NavTab to="/categories" label="Categories" />
+      <NavTab to="/synonyms" label="Synonyms" />
+      <NavTab to="/master" label="Master Inventory" />
+    </nav>
+  );
+}
+
+function ModeToggle() {
+  const [mode, setMode] = useAppMode();
+  const navigate = useNavigate();
+  const switchTo = (m: AppMode) => {
+    if (m === mode) return;
+    setMode(m);
+    navigate({ to: m === "quotation" ? "/" : "/purchases" });
+  };
+  return (
+    <div className="inline-flex items-center rounded-md border bg-muted/40 p-0.5 text-xs">
+      <button
+        type="button"
+        onClick={() => switchTo("quotation")}
+        className={`flex items-center gap-1 px-2 py-1 rounded-sm transition-colors ${
+          mode === "quotation" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        <FileText className="h-3 w-3" /> Quotation
+      </button>
+      <button
+        type="button"
+        onClick={() => switchTo("purchase")}
+        className={`flex items-center gap-1 px-2 py-1 rounded-sm transition-colors ${
+          mode === "purchase" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        <Receipt className="h-3 w-3" /> Purchase
+      </button>
     </div>
   );
 }
