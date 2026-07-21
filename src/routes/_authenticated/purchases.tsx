@@ -201,7 +201,7 @@ function PurchaseWorkspace() {
     setUploadedPaths([]);
     setSupplierName("");
     setInvoiceNumber("");
-    setInvoiceDate("");
+    setInvoiceDate(format(new Date(), "dd-MM-yyyy"));
   };
 
   const exportXlsx = () => {
