@@ -257,12 +257,15 @@ function AccountMenu() {
     );
   }
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-xs text-muted-foreground hidden sm:inline">{email}</span>
-      <Button variant="ghost" size="sm" onClick={signOut}>
-        <LogOut className="h-4 w-4 mr-1" />
-        Sign out
-      </Button>
+    <div className="flex flex-col items-end gap-1.5">
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-muted-foreground hidden sm:inline">{email}</span>
+        <Button variant="ghost" size="sm" onClick={signOut}>
+          <LogOut className="h-4 w-4 mr-1" />
+          Sign out
+        </Button>
+      </div>
+      <ModeToggle />
     </div>
   );
 }
