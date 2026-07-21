@@ -765,7 +765,7 @@ function Workspace() {
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,application/pdf"
                 multiple
                 className="hidden"
                 onChange={(e) => {
