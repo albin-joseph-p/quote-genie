@@ -156,7 +156,7 @@ function AppShell() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b bg-card">
-        <div className="mx-auto max-w-7xl px-6 h-16 flex items-center gap-6">
+        <div className="mx-auto max-w-7xl px-6 min-h-16 py-2 flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold">O</div>
             <span className="font-semibold tracking-tight">Orion Sales Corporation</span>
