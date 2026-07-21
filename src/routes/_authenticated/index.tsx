@@ -214,9 +214,14 @@ function Workspace() {
     file: File,
     annotations: Annotation[],
   ): Promise<{ base64: string; mimeType: string }> => {
+    const mime = file.type || (file.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg");
+    // PDFs (and any non-image) can't be canvas-masked; send bytes as-is.
+    if (!mime.startsWith("image/")) {
+      return { base64: await fileToBase64(file), mimeType: mime };
+    }
     const excludes = annotations.filter((a) => a.label === "Exclude");
     if (excludes.length === 0) {
-      return { base64: await fileToBase64(file), mimeType: file.type };
+      return { base64: await fileToBase64(file), mimeType: mime };
     }
     const url = URL.createObjectURL(file);
     try {
@@ -258,24 +263,37 @@ function Workspace() {
     }
   };
 
+  const isSupported = (f: File) =>
+    f.type.startsWith("image/") ||
+    f.type === "application/pdf" ||
+    f.name.toLowerCase().endsWith(".pdf");
+
   const onFiles = async (fileList: File[], categoriesOverride?: string[]) => {
-    const images = fileList.filter((f) => f.type.startsWith("image/"));
-    const skipped = fileList.length - images.length;
-    if (skipped > 0) toast.error(`${skipped} non-image file${skipped === 1 ? "" : "s"} skipped.`);
-    if (images.length === 0) return;
+    const supported = fileList.filter(isSupported);
+    const skipped = fileList.length - supported.length;
+    if (skipped > 0) toast.error(`${skipped} unsupported file${skipped === 1 ? "" : "s"} skipped.`);
+    if (supported.length === 0) return;
 
     const cats = categoriesOverride ?? selectedCategories;
     if (cats.length === 0) {
       // Stage the files and prompt the user to pick categories first.
-      setPendingFiles(images.slice(0, MAX_IMAGES));
+      setPendingFiles(supported.slice(0, MAX_IMAGES));
       setCategoryDialogOpen(true);
       return;
     }
 
-    let batch = images;
+    let batch = supported;
     if (batch.length > MAX_IMAGES) {
-      toast.error(`Only the first ${MAX_IMAGES} images will be processed.`);
+      toast.error(`Only the first ${MAX_IMAGES} files will be processed.`);
       batch = batch.slice(0, MAX_IMAGES);
+    }
+
+    // PDFs can't be annotated in the image editor — if the batch is PDF-only,
+    // skip the annotate prompt and process directly.
+    const hasImage = batch.some((f) => f.type.startsWith("image/"));
+    if (!hasImage) {
+      runProcessing(batch, cats, {});
+      return;
     }
 
     // Ask whether the user wants to manually annotate before processing.
@@ -747,7 +765,7 @@ function Workspace() {
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,application/pdf"
                 multiple
                 className="hidden"
                 onChange={(e) => {
@@ -768,24 +786,35 @@ function Workspace() {
               ) : previews.length > 0 ? (
                 <div className="flex flex-col items-center gap-3">
                   <div className="flex flex-wrap justify-center gap-2">
-                    {previews.map((p, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setZoomed(p);
-                        }}
-                        className="relative"
-                        title={`Click to zoom · ${p.name}`}
-                      >
-                        <img
-                          src={p.url}
-                          alt={p.name}
-                          className="h-20 w-20 object-cover rounded-lg border hover:ring-2 hover:ring-primary transition"
-                        />
-                      </button>
-                    ))}
+                    {previews.map((p, i) => {
+                      const isPdf = p.name.toLowerCase().endsWith(".pdf");
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isPdf) window.open(p.url, "_blank");
+                            else setZoomed(p);
+                          }}
+                          className="relative"
+                          title={isPdf ? `Open PDF · ${p.name}` : `Click to zoom · ${p.name}`}
+                        >
+                          {isPdf ? (
+                            <div className="h-20 w-20 flex flex-col items-center justify-center rounded-lg border bg-muted text-[10px] font-semibold text-muted-foreground hover:ring-2 hover:ring-primary transition">
+                              <span className="text-base">PDF</span>
+                              <span className="truncate max-w-[70px] px-1">{p.name}</span>
+                            </div>
+                          ) : (
+                            <img
+                              src={p.url}
+                              alt={p.name}
+                              className="h-20 w-20 object-cover rounded-lg border hover:ring-2 hover:ring-primary transition"
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
                     <button
                       type="button"
                       onClick={(e) => {
@@ -833,7 +862,7 @@ function Workspace() {
                       Drop files here or <span className="text-primary">browse</span>
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      JPEG or PNG · up to {MAX_IMAGES} at a time
+                      JPEG, PNG, or PDF · up to {MAX_IMAGES} at a time
                     </p>
                   </div>
                 </div>

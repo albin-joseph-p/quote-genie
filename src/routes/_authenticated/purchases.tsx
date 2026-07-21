@@ -152,9 +152,11 @@ function PurchaseWorkspace() {
 
         // Upload
         const stamp = Date.now();
+        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+        const mime = file.type || (isPdf ? "application/pdf" : "image/jpeg");
         const path = `purchases/${stamp}-${idx}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
         const up = await supabase.storage.from("quotation-images").upload(path, file, {
-          contentType: file.type || "image/jpeg",
+          contentType: mime,
           upsert: false,
         });
         if (!up.error) setUploadedPaths((p) => [...p, up.data.path]);
@@ -163,7 +165,7 @@ function PurchaseWorkspace() {
         const res = await process({
           data: {
             imageBase64: b64,
-            mimeType: file.type || "image/jpeg",
+            mimeType: mime,
             fields,
             allowedCategories: selectedCategories.length ? selectedCategories : undefined,
           },
@@ -331,12 +333,12 @@ function PurchaseWorkspace() {
           }}
         >
           <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-          <p className="font-medium">Drop bill images or click to upload</p>
-          <p className="text-xs text-muted-foreground mt-1">JPEG / PNG — multiple pages supported</p>
+          <p className="font-medium">Drop bill images or PDFs, or click to upload</p>
+          <p className="text-xs text-muted-foreground mt-1">JPEG / PNG / PDF — multiple pages supported</p>
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept="image/*,application/pdf"
             multiple
             className="hidden"
             onChange={(e) => onFiles(e.target.files)}
@@ -345,14 +347,29 @@ function PurchaseWorkspace() {
 
         {previews.length > 0 && (
           <div className="flex gap-2 flex-wrap">
-            {previews.map((p) => (
-              <img
-                key={p.url}
-                src={p.url}
-                alt={p.name}
-                className="h-20 w-20 object-cover rounded border"
-              />
-            ))}
+            {previews.map((p) => {
+              const isPdf = p.name.toLowerCase().endsWith(".pdf");
+              return isPdf ? (
+                <a
+                  key={p.url}
+                  href={p.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="h-20 w-20 flex flex-col items-center justify-center rounded border bg-muted text-[10px] font-semibold text-muted-foreground hover:ring-2 hover:ring-primary transition"
+                  title={p.name}
+                >
+                  <span className="text-base">PDF</span>
+                  <span className="truncate max-w-[70px] px-1">{p.name}</span>
+                </a>
+              ) : (
+                <img
+                  key={p.url}
+                  src={p.url}
+                  alt={p.name}
+                  className="h-20 w-20 object-cover rounded border"
+                />
+              );
+            })}
           </div>
         )}
 
