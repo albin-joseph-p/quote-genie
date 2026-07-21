@@ -10,9 +10,11 @@ import {
   Trash2,
   Filter,
   X,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { format, parse, isValid } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -29,6 +31,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { processPurchase, type PurchaseFieldKey, type PurchaseLine } from "@/lib/purchase.functions";
 import { fetchAllRows } from "@/lib/fetch-all";
@@ -95,7 +98,7 @@ function PurchaseWorkspace() {
   const [uploadedPaths, setUploadedPaths] = useState<string[]>([]);
   const [supplierName, setSupplierName] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [invoiceDate, setInvoiceDate] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState<string>(() => format(new Date(), "dd-MM-yyyy"));
   const [fields, setFields] = useState<PurchaseFieldKey[]>(DEFAULT_FIELDS);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
@@ -198,11 +201,10 @@ function PurchaseWorkspace() {
     setUploadedPaths([]);
     setSupplierName("");
     setInvoiceNumber("");
-    setInvoiceDate("");
+    setInvoiceDate(format(new Date(), "dd-MM-yyyy"));
   };
 
-  const exportXlsx = () => {
-    if (!rows.length) return toast.error("Nothing to export.");
+  const buildExportTable = () => {
     const header = [
       "Item name",
       "Matched code",
@@ -218,10 +220,35 @@ function PurchaseWorkspace() {
         return v ?? "";
       }),
     ]);
+    return { header, body };
+  };
+
+  const exportXlsx = () => {
+    if (!rows.length) return toast.error("Nothing to export.");
+    const { header, body } = buildExportTable();
     const ws = XLSX.utils.aoa_to_sheet([header, ...body]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Purchase");
     XLSX.writeFile(wb, `purchase-${supplierName || "bill"}-${Date.now()}.xlsx`);
+  };
+
+  const exportCsv = () => {
+    if (!rows.length) return toast.error("Nothing to export.");
+    const { header, body } = buildExportTable();
+    const escape = (v: unknown) => {
+      const s = v === null || v === undefined ? "" : String(v);
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [header, ...body].map((row) => row.map(escape).join(",")).join("\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `purchase-${supplierName || "bill"}-${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const savePurchase = async () => {
@@ -280,7 +307,7 @@ function PurchaseWorkspace() {
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground">Invoice date</label>
-            <Input value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} placeholder="DD-MM-YYYY" />
+            <InvoiceDatePicker value={invoiceDate} onChange={setInvoiceDate} />
           </div>
         </div>
 
@@ -338,6 +365,9 @@ function PurchaseWorkspace() {
               </Button>
               <Button variant="outline" size="sm" onClick={exportXlsx}>
                 <FileDown className="h-4 w-4 mr-1" /> Export Excel
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportCsv}>
+                <FileDown className="h-4 w-4 mr-1" /> Export CSV
               </Button>
               <Button size="sm" onClick={savePurchase} disabled={saving}>
                 {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
@@ -643,6 +673,48 @@ function SupplierAutocomplete({
             </CommandGroup>
           </CommandList>
         </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function InvoiceDatePicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const parsed = value ? parse(value, "dd-MM-yyyy", new Date()) : undefined;
+  const date = parsed && isValid(parsed) ? parsed : undefined;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            "w-full justify-start text-left font-normal",
+            !date && "text-muted-foreground",
+          )}
+        >
+          <CalendarIcon className="h-4 w-4 mr-2" />
+          {date ? format(date, "dd-MM-yyyy") : "Pick a date"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={(d) => {
+            if (d) {
+              onChange(format(d, "dd-MM-yyyy"));
+              setOpen(false);
+            }
+          }}
+          initialFocus
+          className={cn("p-3 pointer-events-auto")}
+        />
       </PopoverContent>
     </Popover>
   );
