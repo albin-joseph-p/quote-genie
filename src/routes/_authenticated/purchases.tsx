@@ -578,3 +578,72 @@ function InventoryCombobox({
     </Popover>
   );
 }
+
+function SupplierAutocomplete({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const { data: suppliers = [] } = useQuery({
+    queryKey: ["suppliers-autocomplete"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("suppliers")
+        .select("id,name")
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as { id: string; name: string }[];
+    },
+    staleTime: 60_000,
+  });
+
+  const q = value.trim().toLowerCase();
+  const matches = q
+    ? suppliers.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 8)
+    : suppliers.slice(0, 8);
+
+  return (
+    <Popover open={open && matches.length > 0} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Input
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          placeholder="Supplier name"
+          autoComplete="off"
+        />
+      </PopoverTrigger>
+      <PopoverContent
+        className="p-0 w-[--radix-popover-trigger-width]"
+        align="start"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <Command shouldFilter={false}>
+          <CommandList>
+            <CommandEmpty>No matching supplier</CommandEmpty>
+            <CommandGroup>
+              {matches.map((s) => (
+                <CommandItem
+                  key={s.id}
+                  value={s.name}
+                  onSelect={() => {
+                    onChange(s.name);
+                    setOpen(false);
+                  }}
+                >
+                  {s.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
