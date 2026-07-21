@@ -263,24 +263,37 @@ function Workspace() {
     }
   };
 
+  const isSupported = (f: File) =>
+    f.type.startsWith("image/") ||
+    f.type === "application/pdf" ||
+    f.name.toLowerCase().endsWith(".pdf");
+
   const onFiles = async (fileList: File[], categoriesOverride?: string[]) => {
-    const images = fileList.filter((f) => f.type.startsWith("image/"));
-    const skipped = fileList.length - images.length;
-    if (skipped > 0) toast.error(`${skipped} non-image file${skipped === 1 ? "" : "s"} skipped.`);
-    if (images.length === 0) return;
+    const supported = fileList.filter(isSupported);
+    const skipped = fileList.length - supported.length;
+    if (skipped > 0) toast.error(`${skipped} unsupported file${skipped === 1 ? "" : "s"} skipped.`);
+    if (supported.length === 0) return;
 
     const cats = categoriesOverride ?? selectedCategories;
     if (cats.length === 0) {
       // Stage the files and prompt the user to pick categories first.
-      setPendingFiles(images.slice(0, MAX_IMAGES));
+      setPendingFiles(supported.slice(0, MAX_IMAGES));
       setCategoryDialogOpen(true);
       return;
     }
 
-    let batch = images;
+    let batch = supported;
     if (batch.length > MAX_IMAGES) {
-      toast.error(`Only the first ${MAX_IMAGES} images will be processed.`);
+      toast.error(`Only the first ${MAX_IMAGES} files will be processed.`);
       batch = batch.slice(0, MAX_IMAGES);
+    }
+
+    // PDFs can't be annotated in the image editor — if the batch is PDF-only,
+    // skip the annotate prompt and process directly.
+    const hasImage = batch.some((f) => f.type.startsWith("image/"));
+    if (!hasImage) {
+      runProcessing(batch, cats, {});
+      return;
     }
 
     // Ask whether the user wants to manually annotate before processing.
