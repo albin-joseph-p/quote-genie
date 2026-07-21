@@ -677,3 +677,45 @@ function SupplierAutocomplete({
     </Popover>
   );
 }
+
+function InvoiceDatePicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const parsed = value ? parse(value, "dd-MM-yyyy", new Date()) : undefined;
+  const date = parsed && isValid(parsed) ? parsed : undefined;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            "w-full justify-start text-left font-normal",
+            !date && "text-muted-foreground",
+          )}
+        >
+          <CalendarIcon className="h-4 w-4 mr-2" />
+          {date ? format(date, "dd-MM-yyyy") : "Pick a date"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={(d) => {
+            if (d) {
+              onChange(format(d, "dd-MM-yyyy"));
+              setOpen(false);
+            }
+          }}
+          initialFocus
+          className={cn("p-3 pointer-events-auto")}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
