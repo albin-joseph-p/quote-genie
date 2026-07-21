@@ -162,6 +162,7 @@ function AppShell() {
           </Link>
           <nav className="flex items-center gap-1 ml-4">
             <NavTab to="/" label="Quotation Workspace" />
+            <NavTab to="/purchases" label="Purchase Entry" />
             <NavTab to="/history" label="History" />
             <NavTab to="/categories" label="Categories" />
             <NavTab to="/synonyms" label="Synonyms" />
