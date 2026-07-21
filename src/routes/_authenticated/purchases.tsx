@@ -366,6 +366,9 @@ function PurchaseWorkspace() {
               <Button variant="outline" size="sm" onClick={exportXlsx}>
                 <FileDown className="h-4 w-4 mr-1" /> Export Excel
               </Button>
+              <Button variant="outline" size="sm" onClick={exportCsv}>
+                <FileDown className="h-4 w-4 mr-1" /> Export CSV
+              </Button>
               <Button size="sm" onClick={savePurchase} disabled={saving}>
                 {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
                 Save
