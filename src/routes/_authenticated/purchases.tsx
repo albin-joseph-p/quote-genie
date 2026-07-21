@@ -179,13 +179,31 @@ function PurchaseWorkspace() {
         if (res.invoiceDate) {
           // Try to normalize to dd-MM-yyyy; keep raw string if unparseable
           const raw = res.invoiceDate.trim();
-          const patterns = ["dd-MM-yyyy", "dd/MM/yyyy", "d-M-yyyy", "d/M/yyyy", "yyyy-MM-dd", "dd-MM-yy", "dd/MM/yy", "dd.MM.yyyy", "d MMM yyyy", "dd MMM yyyy", "MMMM d, yyyy"];
-          let normalized = raw;
+          const patterns = [
+            "dd-MM-yyyy", "dd/MM/yyyy", "dd.MM.yyyy", "dd MM yyyy",
+            "d-M-yyyy", "d/M/yyyy", "d.M.yyyy",
+            "dd-MM-yy", "dd/MM/yy", "d/M/yy", "d-M-yy",
+            "yyyy-MM-dd", "yyyy/MM/dd",
+            "d MMM yyyy", "dd MMM yyyy", "d MMMM yyyy", "dd MMMM yyyy",
+            "MMM d, yyyy", "MMMM d, yyyy", "MMM d yyyy",
+          ];
+          let normalized = "";
           for (const p of patterns) {
             const d = parse(raw, p, new Date());
             if (isValid(d)) { normalized = format(d, "dd-MM-yyyy"); break; }
           }
-          setInvoiceDate(normalized);
+          // Regex fallback: pull first date-like token out of the string
+          if (!normalized) {
+            const m = raw.match(/(\d{1,2})[-/.\s]([A-Za-z]{3,}|\d{1,2})[-/.\s](\d{2,4})/);
+            if (m) {
+              const candidate = `${m[1]}-${m[2]}-${m[3]}`;
+              for (const p of patterns) {
+                const d = parse(candidate, p, new Date());
+                if (isValid(d)) { normalized = format(d, "dd-MM-yyyy"); break; }
+              }
+            }
+          }
+          setInvoiceDate(normalized || raw);
         }
 
         const newRows: Row[] = res.items.map((it, i) => ({
