@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedSynonymsRouteImport } from './routes/_authenticated/synonyms'
+import { Route as AuthenticatedPurchasesRouteImport } from './routes/_authenticated/purchases'
 import { Route as AuthenticatedMasterRouteImport } from './routes/_authenticated/master'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedCategoriesRouteImport } from './routes/_authenticated/categories'
@@ -44,6 +45,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
 const AuthenticatedSynonymsRoute = AuthenticatedSynonymsRouteImport.update({
   id: '/synonyms',
   path: '/synonyms',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPurchasesRoute = AuthenticatedPurchasesRouteImport.update({
+  id: '/purchases',
+  path: '/purchases',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMasterRoute = AuthenticatedMasterRouteImport.update({
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/categories': typeof AuthenticatedCategoriesRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/master': typeof AuthenticatedMasterRoute
+  '/purchases': typeof AuthenticatedPurchasesRoute
   '/synonyms': typeof AuthenticatedSynonymsRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -106,6 +113,7 @@ export interface FileRoutesByTo {
   '/categories': typeof AuthenticatedCategoriesRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/master': typeof AuthenticatedMasterRoute
+  '/purchases': typeof AuthenticatedPurchasesRoute
   '/synonyms': typeof AuthenticatedSynonymsRoute
   '/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   '/_authenticated/categories': typeof AuthenticatedCategoriesRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/master': typeof AuthenticatedMasterRoute
+  '/_authenticated/purchases': typeof AuthenticatedPurchasesRoute
   '/_authenticated/synonyms': typeof AuthenticatedSynonymsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
     | '/categories'
     | '/history'
     | '/master'
+    | '/purchases'
     | '/synonyms'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/categories'
     | '/history'
     | '/master'
+    | '/purchases'
     | '/synonyms'
     | '/'
     | '/.lovable/oauth/consent'
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/_authenticated/categories'
     | '/_authenticated/history'
     | '/_authenticated/master'
+    | '/_authenticated/purchases'
     | '/_authenticated/synonyms'
     | '/_authenticated/'
     | '/.lovable/oauth/consent'
@@ -214,6 +226,13 @@ declare module '@tanstack/react-router' {
       path: '/synonyms'
       fullPath: '/synonyms'
       preLoaderRoute: typeof AuthenticatedSynonymsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/purchases': {
+      id: '/_authenticated/purchases'
+      path: '/purchases'
+      fullPath: '/purchases'
+      preLoaderRoute: typeof AuthenticatedPurchasesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/master': {
@@ -272,6 +291,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCategoriesRoute: typeof AuthenticatedCategoriesRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedMasterRoute: typeof AuthenticatedMasterRoute
+  AuthenticatedPurchasesRoute: typeof AuthenticatedPurchasesRoute
   AuthenticatedSynonymsRoute: typeof AuthenticatedSynonymsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
@@ -280,6 +300,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCategoriesRoute: AuthenticatedCategoriesRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedMasterRoute: AuthenticatedMasterRoute,
+  AuthenticatedPurchasesRoute: AuthenticatedPurchasesRoute,
   AuthenticatedSynonymsRoute: AuthenticatedSynonymsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
