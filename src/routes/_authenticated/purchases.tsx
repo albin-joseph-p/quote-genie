@@ -283,7 +283,7 @@ function PurchaseWorkspace() {
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground">Invoice date</label>
-            <Input value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} placeholder="DD-MM-YYYY" />
+            <InvoiceDatePicker value={invoiceDate} onChange={setInvoiceDate} />
           </div>
         </div>
 
