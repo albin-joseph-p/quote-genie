@@ -272,7 +272,7 @@ function PurchaseWorkspace() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
             <label className="text-xs font-medium text-muted-foreground">Supplier</label>
-            <Input value={supplierName} onChange={(e) => setSupplierName(e.target.value)} placeholder="Supplier name" />
+            <SupplierAutocomplete value={supplierName} onChange={setSupplierName} />
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground">Invoice #</label>
