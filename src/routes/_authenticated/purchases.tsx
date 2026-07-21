@@ -345,14 +345,29 @@ function PurchaseWorkspace() {
 
         {previews.length > 0 && (
           <div className="flex gap-2 flex-wrap">
-            {previews.map((p) => (
-              <img
-                key={p.url}
-                src={p.url}
-                alt={p.name}
-                className="h-20 w-20 object-cover rounded border"
-              />
-            ))}
+            {previews.map((p) => {
+              const isPdf = p.name.toLowerCase().endsWith(".pdf");
+              return isPdf ? (
+                <a
+                  key={p.url}
+                  href={p.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="h-20 w-20 flex flex-col items-center justify-center rounded border bg-muted text-[10px] font-semibold text-muted-foreground hover:ring-2 hover:ring-primary transition"
+                  title={p.name}
+                >
+                  <span className="text-base">PDF</span>
+                  <span className="truncate max-w-[70px] px-1">{p.name}</span>
+                </a>
+              ) : (
+                <img
+                  key={p.url}
+                  src={p.url}
+                  alt={p.name}
+                  className="h-20 w-20 object-cover rounded border"
+                />
+              );
+            })}
           </div>
         )}
 
