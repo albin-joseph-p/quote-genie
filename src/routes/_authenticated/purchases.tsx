@@ -172,9 +172,19 @@ function PurchaseWorkspace() {
           toast.error(res.error.message);
           continue;
         }
-        if (!supplierName && res.supplierName) setSupplierName(res.supplierName);
-        if (!invoiceNumber && res.invoiceNumber) setInvoiceNumber(res.invoiceNumber);
-        if (!invoiceDate && res.invoiceDate) setInvoiceDate(res.invoiceDate);
+        if (res.supplierName) setSupplierName(res.supplierName);
+        if (res.invoiceNumber) setInvoiceNumber(res.invoiceNumber);
+        if (res.invoiceDate) {
+          // Try to normalize to dd-MM-yyyy; keep raw string if unparseable
+          const raw = res.invoiceDate.trim();
+          const patterns = ["dd-MM-yyyy", "dd/MM/yyyy", "d-M-yyyy", "d/M/yyyy", "yyyy-MM-dd", "dd-MM-yy", "dd/MM/yy", "dd.MM.yyyy", "d MMM yyyy", "dd MMM yyyy", "MMMM d, yyyy"];
+          let normalized = raw;
+          for (const p of patterns) {
+            const d = parse(raw, p, new Date());
+            if (isValid(d)) { normalized = format(d, "dd-MM-yyyy"); break; }
+          }
+          setInvoiceDate(normalized);
+        }
 
         const newRows: Row[] = res.items.map((it, i) => ({
           ...it,
