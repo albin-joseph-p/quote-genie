@@ -10,16 +10,124 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { useAppMode } from "@/lib/app-mode";
 
 export const Route = createFileRoute("/_authenticated/history")({
   head: () => ({
     meta: [
-      { title: "Quotation History — Orion Sales Corporation" },
-      { name: "description", content: "Browse, search and reopen previously processed customer quotations." },
+      { title: "History — Orion Sales Corporation" },
+      { name: "description", content: "Browse, search and reopen previously processed quotations and purchase entries." },
     ],
   }),
-  component: HistoryPage,
+  component: HistoryRouter,
 });
+
+function HistoryRouter() {
+  const [mode] = useAppMode();
+  return mode === "purchase" ? <PurchaseHistoryPage /> : <HistoryPage />;
+}
+
+function PurchaseHistoryPage() {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+
+  const listQ = useQuery({
+    queryKey: ["purchases-history-full"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("purchases")
+        .select("id,supplier_name,invoice_number,invoice_date,item_count,created_at")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("purchases").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Purchase deleted");
+      qc.invalidateQueries({ queryKey: ["purchases-history-full"] });
+      qc.invalidateQueries({ queryKey: ["purchases-history"] });
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const rows = listQ.data ?? [];
+    if (!q) return rows;
+    return rows.filter((r: any) =>
+      (r.supplier_name || "").toLowerCase().includes(q) ||
+      (r.invoice_number || "").toLowerCase().includes(q) ||
+      new Date(r.created_at).toLocaleString().toLowerCase().includes(q),
+    );
+  }, [listQ.data, search]);
+
+  return (
+    <div className="mx-auto max-w-7xl px-6 py-8 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Purchase History</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Every processed purchase bill is archived here.
+        </p>
+      </div>
+
+      <Card className="p-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by supplier, invoice # or date…"
+            className="pl-9"
+          />
+        </div>
+      </Card>
+
+      <Card className="p-0 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="text-left p-3 font-medium">Date & Time</th>
+              <th className="text-left p-3 font-medium">Supplier</th>
+              <th className="text-left p-3 font-medium">Invoice #</th>
+              <th className="text-left p-3 font-medium">Invoice Date</th>
+              <th className="text-left p-3 font-medium">Items</th>
+              <th className="text-right p-3 font-medium w-24">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {listQ.isLoading && (
+              <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Loading…</td></tr>
+            )}
+            {!listQ.isLoading && filtered.length === 0 && (
+              <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No purchases yet.</td></tr>
+            )}
+            {filtered.map((p: any) => (
+              <tr key={p.id} className="border-t hover:bg-muted/30">
+                <td className="p-3 whitespace-nowrap">{new Date(p.created_at).toLocaleString()}</td>
+                <td className="p-3 font-medium">{p.supplier_name || <span className="text-muted-foreground italic">Unknown</span>}</td>
+                <td className="p-3 font-mono text-xs">{p.invoice_number || "—"}</td>
+                <td className="p-3">{p.invoice_date || "—"}</td>
+                <td className="p-3"><Badge variant="secondary">{p.item_count}</Badge></td>
+                <td className="p-3 text-right">
+                  <Button variant="ghost" size="sm" onClick={() => del.mutate(p.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}
 
 type QuoteItem = {
   extractedText: string;
