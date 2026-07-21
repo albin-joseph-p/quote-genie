@@ -16,6 +16,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { LogOut, FileText, Receipt } from "lucide-react";
 import { useAppMode, type AppMode } from "@/lib/app-mode";
 
@@ -194,31 +195,22 @@ function ModeAwareNav() {
 function ModeToggle() {
   const [mode, setMode] = useAppMode();
   const navigate = useNavigate();
-  const switchTo = (m: AppMode) => {
-    if (m === mode) return;
-    setMode(m);
-    navigate({ to: m === "quotation" ? "/" : "/purchases" });
+  const isPurchase = mode === "purchase";
+  const onChange = (checked: boolean) => {
+    const next: AppMode = checked ? "purchase" : "quotation";
+    if (next === mode) return;
+    setMode(next);
+    navigate({ to: next === "quotation" ? "/" : "/purchases" });
   };
   return (
-    <div className="inline-flex items-center rounded-md border bg-muted/40 p-0.5 text-xs">
-      <button
-        type="button"
-        onClick={() => switchTo("quotation")}
-        className={`flex items-center gap-1 px-2 py-1 rounded-sm transition-colors ${
-          mode === "quotation" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"
-        }`}
-      >
+    <div className="inline-flex items-center gap-2 rounded-md border bg-muted/40 px-2 py-1 text-xs">
+      <span className={`flex items-center gap-1 ${!isPurchase ? "font-medium text-foreground" : "text-muted-foreground"}`}>
         <FileText className="h-3 w-3" /> Quotation
-      </button>
-      <button
-        type="button"
-        onClick={() => switchTo("purchase")}
-        className={`flex items-center gap-1 px-2 py-1 rounded-sm transition-colors ${
-          mode === "purchase" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"
-        }`}
-      >
+      </span>
+      <Switch checked={isPurchase} onCheckedChange={onChange} aria-label="Toggle mode" />
+      <span className={`flex items-center gap-1 ${isPurchase ? "font-medium text-foreground" : "text-muted-foreground"}`}>
         <Receipt className="h-3 w-3" /> Purchase
-      </button>
+      </span>
     </div>
   );
 }
