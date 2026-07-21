@@ -16,7 +16,8 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, FileText, Receipt } from "lucide-react";
+import { useAppMode, type AppMode } from "@/lib/app-mode";
 
 function NotFoundComponent() {
   return (
