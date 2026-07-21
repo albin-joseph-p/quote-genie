@@ -102,12 +102,7 @@ function PurchaseWorkspace() {
 
   const { data: inventory = [] } = useQuery({
     queryKey: ["inventory-purchase"],
-    queryFn: async () => {
-      const rows = await fetchAllRows<InventoryRow>(async (from, to) =>
-        supabase.from("inventory").select("item_code,item_name,category,brand").range(from, to),
-      );
-      return rows;
-    },
+    queryFn: () => fetchAllRows<InventoryRow>("inventory", "item_code,item_name,category,brand"),
     staleTime: 60_000,
   });
 
