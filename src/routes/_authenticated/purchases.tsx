@@ -425,12 +425,27 @@ function PurchaseWorkspace() {
               <thead className="bg-muted/50">
                 <tr className="text-left">
                   {FIELDS.filter((f) => fields.includes(f.key)).map((f) => (
-                    <th key={f.key} className="px-3 py-2 whitespace-nowrap">{f.label}</th>
+                    <th key={f.key} className="px-3 py-2 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 group">
+                        {f.label}
+                        {f.key !== "itemName" && (
+                          <button
+                            type="button"
+                            onClick={() => toggleField(f.key)}
+                            className="opacity-40 hover:opacity-100 hover:text-destructive transition"
+                            title={`Remove ${f.label} column`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </span>
+                    </th>
                   ))}
                   <th className="px-3 py-2 whitespace-nowrap">Matched item</th>
                   <th className="px-3 py-2 w-8"></th>
                 </tr>
               </thead>
+
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id} className="border-t align-top">
