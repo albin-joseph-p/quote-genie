@@ -331,12 +331,12 @@ function PurchaseWorkspace() {
           }}
         >
           <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-          <p className="font-medium">Drop bill images or click to upload</p>
-          <p className="text-xs text-muted-foreground mt-1">JPEG / PNG — multiple pages supported</p>
+          <p className="font-medium">Drop bill images or PDFs, or click to upload</p>
+          <p className="text-xs text-muted-foreground mt-1">JPEG / PNG / PDF — multiple pages supported</p>
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept="image/*,application/pdf"
             multiple
             className="hidden"
             onChange={(e) => onFiles(e.target.files)}
