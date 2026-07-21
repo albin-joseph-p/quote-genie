@@ -862,7 +862,7 @@ function Workspace() {
                       Drop files here or <span className="text-primary">browse</span>
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      JPEG or PNG · up to {MAX_IMAGES} at a time
+                      JPEG, PNG, or PDF · up to {MAX_IMAGES} at a time
                     </p>
                   </div>
                 </div>
