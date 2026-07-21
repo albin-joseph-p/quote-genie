@@ -31,6 +31,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { processPurchase, type PurchaseFieldKey, type PurchaseLine } from "@/lib/purchase.functions";
 import { fetchAllRows } from "@/lib/fetch-all";
