@@ -204,8 +204,7 @@ function PurchaseWorkspace() {
     setInvoiceDate(format(new Date(), "dd-MM-yyyy"));
   };
 
-  const exportXlsx = () => {
-    if (!rows.length) return toast.error("Nothing to export.");
+  const buildExportTable = () => {
     const header = [
       "Item name",
       "Matched code",
@@ -221,10 +220,35 @@ function PurchaseWorkspace() {
         return v ?? "";
       }),
     ]);
+    return { header, body };
+  };
+
+  const exportXlsx = () => {
+    if (!rows.length) return toast.error("Nothing to export.");
+    const { header, body } = buildExportTable();
     const ws = XLSX.utils.aoa_to_sheet([header, ...body]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Purchase");
     XLSX.writeFile(wb, `purchase-${supplierName || "bill"}-${Date.now()}.xlsx`);
+  };
+
+  const exportCsv = () => {
+    if (!rows.length) return toast.error("Nothing to export.");
+    const { header, body } = buildExportTable();
+    const escape = (v: unknown) => {
+      const s = v === null || v === undefined ? "" : String(v);
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [header, ...body].map((row) => row.map(escape).join(",")).join("\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `purchase-${supplierName || "bill"}-${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const savePurchase = async () => {
