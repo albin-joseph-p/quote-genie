@@ -152,9 +152,11 @@ function PurchaseWorkspace() {
 
         // Upload
         const stamp = Date.now();
+        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+        const mime = file.type || (isPdf ? "application/pdf" : "image/jpeg");
         const path = `purchases/${stamp}-${idx}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
         const up = await supabase.storage.from("quotation-images").upload(path, file, {
-          contentType: file.type || "image/jpeg",
+          contentType: mime,
           upsert: false,
         });
         if (!up.error) setUploadedPaths((p) => [...p, up.data.path]);
@@ -163,7 +165,7 @@ function PurchaseWorkspace() {
         const res = await process({
           data: {
             imageBase64: b64,
-            mimeType: file.type || "image/jpeg",
+            mimeType: mime,
             fields,
             allowedCategories: selectedCategories.length ? selectedCategories : undefined,
           },
