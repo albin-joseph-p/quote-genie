@@ -214,9 +214,14 @@ function Workspace() {
     file: File,
     annotations: Annotation[],
   ): Promise<{ base64: string; mimeType: string }> => {
+    const mime = file.type || (file.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg");
+    // PDFs (and any non-image) can't be canvas-masked; send bytes as-is.
+    if (!mime.startsWith("image/")) {
+      return { base64: await fileToBase64(file), mimeType: mime };
+    }
     const excludes = annotations.filter((a) => a.label === "Exclude");
     if (excludes.length === 0) {
-      return { base64: await fileToBase64(file), mimeType: file.type };
+      return { base64: await fileToBase64(file), mimeType: mime };
     }
     const url = URL.createObjectURL(file);
     try {
