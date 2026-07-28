@@ -188,8 +188,12 @@ function ModeAwareNav() {
       {mode === "quotation" ? (
         <NavTab to="/categories" label="Categories" />
       ) : (
-        <NavTab to="/suppliers" label="Suppliers" />
+        <>
+          <NavTab to="/suppliers" label="Suppliers" />
+          <NavTab to="/presets" label="Presets" />
+        </>
       )}
+
       <NavTab to="/synonyms" label="Synonyms" />
       <NavTab to="/master" label="Master Inventory" />
     </nav>

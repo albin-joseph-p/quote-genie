@@ -1,6 +1,12 @@
 // Google AI Studio (Gemini) direct REST caller — fallback provider.
 // Uses user-supplied GOOGLE_AI_API_KEY. No SDK, no GCP project setup.
 
+export type GeminiExample = {
+  imageBase64: string;
+  mimeType: string;
+  outputJson: string;
+};
+
 export async function callGeminiAiStudio(params: {
   apiKey: string;
   systemPrompt: string;
@@ -8,13 +14,27 @@ export async function callGeminiAiStudio(params: {
   imageBase64: string;
   mimeType: string;
   model?: string;
+  /** Few-shot training samples (preset documents + their correct output). */
+  examples?: GeminiExample[];
 }): Promise<string> {
   const model = params.model ?? "gemini-2.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(params.apiKey)}`;
 
+  const exampleTurns = (params.examples ?? []).flatMap((ex) => [
+    {
+      role: "user",
+      parts: [
+        { text: "TRAINING EXAMPLE — extract this document." },
+        { inline_data: { mime_type: ex.mimeType, data: ex.imageBase64 } },
+      ],
+    },
+    { role: "model", parts: [{ text: ex.outputJson }] },
+  ]);
+
   const body = {
     systemInstruction: { parts: [{ text: params.systemPrompt }] },
     contents: [
+      ...exampleTurns,
       {
         role: "user",
         parts: [
@@ -28,6 +48,7 @@ export async function callGeminiAiStudio(params: {
       temperature: 0.2,
     },
   };
+
 
   const res = await fetch(url, {
     method: "POST",

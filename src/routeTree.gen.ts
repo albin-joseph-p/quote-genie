@@ -16,6 +16,7 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedSynonymsRouteImport } from './routes/_authenticated/synonyms'
 import { Route as AuthenticatedSuppliersRouteImport } from './routes/_authenticated/suppliers'
 import { Route as AuthenticatedPurchasesRouteImport } from './routes/_authenticated/purchases'
+import { Route as AuthenticatedPresetsRouteImport } from './routes/_authenticated/presets'
 import { Route as AuthenticatedMasterRouteImport } from './routes/_authenticated/master'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedCategoriesRouteImport } from './routes/_authenticated/categories'
@@ -56,6 +57,11 @@ const AuthenticatedSuppliersRoute = AuthenticatedSuppliersRouteImport.update({
 const AuthenticatedPurchasesRoute = AuthenticatedPurchasesRouteImport.update({
   id: '/purchases',
   path: '/purchases',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPresetsRoute = AuthenticatedPresetsRouteImport.update({
+  id: '/presets',
+  path: '/presets',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMasterRoute = AuthenticatedMasterRouteImport.update({
@@ -106,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/categories': typeof AuthenticatedCategoriesRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/master': typeof AuthenticatedMasterRoute
+  '/presets': typeof AuthenticatedPresetsRoute
   '/purchases': typeof AuthenticatedPurchasesRoute
   '/suppliers': typeof AuthenticatedSuppliersRoute
   '/synonyms': typeof AuthenticatedSynonymsRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByTo {
   '/categories': typeof AuthenticatedCategoriesRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/master': typeof AuthenticatedMasterRoute
+  '/presets': typeof AuthenticatedPresetsRoute
   '/purchases': typeof AuthenticatedPurchasesRoute
   '/suppliers': typeof AuthenticatedSuppliersRoute
   '/synonyms': typeof AuthenticatedSynonymsRoute
@@ -137,6 +145,7 @@ export interface FileRoutesById {
   '/_authenticated/categories': typeof AuthenticatedCategoriesRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/master': typeof AuthenticatedMasterRoute
+  '/_authenticated/presets': typeof AuthenticatedPresetsRoute
   '/_authenticated/purchases': typeof AuthenticatedPurchasesRoute
   '/_authenticated/suppliers': typeof AuthenticatedSuppliersRoute
   '/_authenticated/synonyms': typeof AuthenticatedSynonymsRoute
@@ -155,6 +164,7 @@ export interface FileRouteTypes {
     | '/categories'
     | '/history'
     | '/master'
+    | '/presets'
     | '/purchases'
     | '/suppliers'
     | '/synonyms'
@@ -169,6 +179,7 @@ export interface FileRouteTypes {
     | '/categories'
     | '/history'
     | '/master'
+    | '/presets'
     | '/purchases'
     | '/suppliers'
     | '/synonyms'
@@ -185,6 +196,7 @@ export interface FileRouteTypes {
     | '/_authenticated/categories'
     | '/_authenticated/history'
     | '/_authenticated/master'
+    | '/_authenticated/presets'
     | '/_authenticated/purchases'
     | '/_authenticated/suppliers'
     | '/_authenticated/synonyms'
@@ -254,6 +266,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPurchasesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/presets': {
+      id: '/_authenticated/presets'
+      path: '/presets'
+      fullPath: '/presets'
+      preLoaderRoute: typeof AuthenticatedPresetsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/master': {
       id: '/_authenticated/master'
       path: '/master'
@@ -310,6 +329,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCategoriesRoute: typeof AuthenticatedCategoriesRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedMasterRoute: typeof AuthenticatedMasterRoute
+  AuthenticatedPresetsRoute: typeof AuthenticatedPresetsRoute
   AuthenticatedPurchasesRoute: typeof AuthenticatedPurchasesRoute
   AuthenticatedSuppliersRoute: typeof AuthenticatedSuppliersRoute
   AuthenticatedSynonymsRoute: typeof AuthenticatedSynonymsRoute
@@ -320,6 +340,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCategoriesRoute: AuthenticatedCategoriesRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedMasterRoute: AuthenticatedMasterRoute,
+  AuthenticatedPresetsRoute: AuthenticatedPresetsRoute,
   AuthenticatedPurchasesRoute: AuthenticatedPurchasesRoute,
   AuthenticatedSuppliersRoute: AuthenticatedSuppliersRoute,
   AuthenticatedSynonymsRoute: AuthenticatedSynonymsRoute,

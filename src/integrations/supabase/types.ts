@@ -127,6 +127,51 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_presets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          field_keys: string[]
+          id: string
+          is_active: boolean
+          name: string
+          notes: string
+          output_example: Json
+          sample_mimes: string[]
+          sample_paths: string[]
+          supplier_hint: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          field_keys?: string[]
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string
+          output_example?: Json
+          sample_mimes?: string[]
+          sample_paths?: string[]
+          supplier_hint?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          field_keys?: string[]
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string
+          output_example?: Json
+          sample_mimes?: string[]
+          sample_paths?: string[]
+          supplier_hint?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       purchases: {
         Row: {
           captured_fields: string[]
