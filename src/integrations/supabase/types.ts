@@ -104,26 +104,26 @@ export type Database = {
         Row: {
           brand: string
           category: string | null
+          comp_code: string
           created_at: string
           item_code: string
           item_name: string
-          remarks: string
         }
         Insert: {
           brand?: string
           category?: string | null
+          comp_code?: string
           created_at?: string
           item_code: string
           item_name: string
-          remarks?: string
         }
         Update: {
           brand?: string
           category?: string | null
+          comp_code?: string
           created_at?: string
           item_code?: string
           item_name?: string
-          remarks?: string
         }
         Relationships: []
       }
