@@ -102,6 +102,22 @@ function PurchaseWorkspace() {
   const [fields, setFields] = useState<PurchaseFieldKey[]>(DEFAULT_FIELDS);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>("");
+
+  const { data: presets = [] } = useQuery({
+    queryKey: ["purchase-presets-active"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("purchase_presets")
+        .select("id,name,field_keys,supplier_hint")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as { id: string; name: string; field_keys: string[]; supplier_hint: string }[];
+    },
+    staleTime: 60_000,
+  });
+
 
   const { data: inventory = [] } = useQuery({
     queryKey: ["inventory-purchase"],
