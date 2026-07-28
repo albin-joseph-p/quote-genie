@@ -4,14 +4,17 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location }) => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
+    // getSession() reads the locally stored session (and refreshes it only when
+    // expired) instead of a blocking network round-trip on every navigation.
+    const { data } = await supabase.auth.getSession();
+    const user = data.session?.user;
+    if (!user) {
       throw redirect({
         to: "/auth",
         search: { next: location.pathname + location.searchStr },
       });
     }
-    return { user: data.user };
+    return { user };
   },
   component: () => <Outlet />,
 });
