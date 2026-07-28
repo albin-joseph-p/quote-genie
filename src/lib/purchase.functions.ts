@@ -17,10 +17,20 @@ const FIELD_KEYS = [
 ] as const;
 export type PurchaseFieldKey = (typeof FIELD_KEYS)[number];
 
+const AnnotationSchema = z.object({
+  label: z.string(),
+  x: z.number(),
+  y: z.number(),
+  w: z.number(),
+  h: z.number(),
+  text: z.string().optional(),
+});
+
 const Input = z.object({
   imageBase64: z.string().min(1),
   mimeType: z.string().min(1),
   fields: z.array(z.enum(FIELD_KEYS)).min(1),
+  annotations: z.array(AnnotationSchema).optional(),
   allowedCategories: z.array(z.string()).optional(),
   /** Optional format preset to train the extraction on. */
   presetId: z.string().uuid().optional(),
