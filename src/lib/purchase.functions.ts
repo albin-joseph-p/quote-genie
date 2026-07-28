@@ -118,12 +118,17 @@ export const processPurchase = createServerFn({ method: "POST" })
     };
 
     const inventory = await fetchAllInventory();
-    const allowed = data.allowedCategories && data.allowedCategories.length
-      ? new Set(data.allowedCategories.map((c) => c.trim()).filter(Boolean))
-      : null;
+    const categoryScope = [
+      ...(data.allowedCategories ?? []),
+      ...(data.presetCategory ? [data.presetCategory] : []),
+    ]
+      .map((c) => c.trim())
+      .filter(Boolean);
+    const allowed = categoryScope.length ? new Set(categoryScope) : null;
     const scopedInventory = allowed
       ? inventory.filter((i) => allowed.has((i.category ?? "").trim()))
       : inventory;
+
 
     const invList = scopedInventory
       .slice(0, 4000)
