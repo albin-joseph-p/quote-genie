@@ -24,7 +24,10 @@ const Input = z.object({
   allowedCategories: z.array(z.string()).optional(),
   /** Optional format preset to train the extraction on. */
   presetId: z.string().uuid().optional(),
+  /** Category this purchase belongs to — selects a trained preset and scopes matching. */
+  presetCategory: z.string().optional(),
 });
+
 
 
 export type PurchaseLine = {
