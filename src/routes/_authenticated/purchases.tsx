@@ -185,9 +185,10 @@ function PurchaseWorkspace() {
             mimeType: mime,
             fields,
             allowedCategories: selectedCategories.length ? selectedCategories : undefined,
-            presetId: selectedPresetId || undefined,
+            presetCategory: purchaseCategory || undefined,
 
           },
+
         });
         if (res.error) {
           toast.error(res.error.message);
