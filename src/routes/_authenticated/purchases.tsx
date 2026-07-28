@@ -104,6 +104,13 @@ function PurchaseWorkspace() {
   const [fields, setFields] = useState<PurchaseFieldKey[]>(DEFAULT_FIELDS);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+
+  // Manual annotation flow
+  const [annotatePromptOpen, setAnnotatePromptOpen] = useState(false);
+  const [annotatorOpen, setAnnotatorOpen] = useState(false);
+  const [filesForAnnotator, setFilesForAnnotator] = useState<File[]>([]);
+  const [annotationsForBatch, setAnnotationsForBatch] = useState<Record<number, Annotation[]>>({});
+  const [hasAnnotatedBatch, setHasAnnotatedBatch] = useState(false);
   const [purchaseCategory, setPurchaseCategory] = useState<string>("");
 
   const { data: presets = [] } = useQuery({
