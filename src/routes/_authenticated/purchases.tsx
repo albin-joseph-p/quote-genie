@@ -159,30 +159,56 @@ function PurchaseWorkspace() {
       return;
     }
     const arr = Array.from(files);
+    // PDFs can't be annotated — process them straight away.
+    const hasImage = arr.some((f) => f.type.startsWith("image/"));
+    if (!hasImage) {
+      runProcessing(arr, {});
+      return;
+    }
+    setFilesForAnnotator(arr);
+    setAnnotationsForBatch({});
+    setAnnotatePromptOpen(true);
+  };
+
+  const runProcessing = async (
+    arr: File[],
+    annotationsMap: Record<number, Annotation[]>,
+    replace = false,
+  ) => {
+    if (replace) {
+      setRows([]);
+      setPreviews((ps) => {
+        ps.forEach((p) => p.url.startsWith("blob:") && URL.revokeObjectURL(p.url));
+        return [];
+      });
+      setUploadedPaths([]);
+    }
     setLoading(true);
     try {
       for (let idx = 0; idx < arr.length; idx++) {
         const file = arr[idx];
+        const anns = annotationsMap[idx] ?? [];
         const previewUrl = URL.createObjectURL(file);
         setPreviews((p) => [...p, { url: previewUrl, name: file.name }]);
 
+        // Burn "Exclude" boxes into the pixels before upload + AI.
+        const masked = await maskExcludedRegions(file, anns);
+
         // Upload
         const stamp = Date.now();
-        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-        const mime = file.type || (isPdf ? "application/pdf" : "image/jpeg");
         const path = `purchases/${stamp}-${idx}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-        const up = await supabase.storage.from("quotation-images").upload(path, file, {
-          contentType: mime,
+        const up = await supabase.storage.from("quotation-images").upload(path, masked.blob, {
+          contentType: masked.mimeType,
           upsert: false,
         });
         if (!up.error) setUploadedPaths((p) => [...p, up.data.path]);
 
-        const b64 = await fileToBase64(file);
         const res = await process({
           data: {
-            imageBase64: b64,
-            mimeType: mime,
+            imageBase64: masked.base64,
+            mimeType: masked.mimeType,
             fields,
+            annotations: annotationsForAi(anns),
             allowedCategories: selectedCategories.length ? selectedCategories : undefined,
             presetCategory: purchaseCategory || undefined,
 
