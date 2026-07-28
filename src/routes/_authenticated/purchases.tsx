@@ -102,21 +102,22 @@ function PurchaseWorkspace() {
   const [fields, setFields] = useState<PurchaseFieldKey[]>(DEFAULT_FIELDS);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
-  const [selectedPresetId, setSelectedPresetId] = useState<string>("");
+  const [purchaseCategory, setPurchaseCategory] = useState<string>("");
 
   const { data: presets = [] } = useQuery({
     queryKey: ["purchase-presets-active"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("purchase_presets")
-        .select("id,name,field_keys,supplier_hint")
+        .select("id,name,field_keys,category")
         .eq("is_active", true)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as { id: string; name: string; field_keys: string[]; supplier_hint: string }[];
+      return (data ?? []) as { id: string; name: string; field_keys: string[]; category: string }[];
     },
     staleTime: 60_000,
   });
+
 
 
   const { data: inventory = [] } = useQuery({
@@ -184,9 +185,10 @@ function PurchaseWorkspace() {
             mimeType: mime,
             fields,
             allowedCategories: selectedCategories.length ? selectedCategories : undefined,
-            presetId: selectedPresetId || undefined,
+            presetCategory: purchaseCategory || undefined,
 
           },
+
         });
         if (res.error) {
           toast.error(res.error.message);
@@ -333,23 +335,24 @@ function PurchaseWorkspace() {
         </div>
         <div className="flex items-center gap-2">
           <select
-            value={selectedPresetId}
+            value={purchaseCategory}
             onChange={(e) => {
-              const id = e.target.value;
-              setSelectedPresetId(id);
-              const p = presets.find((x) => x.id === id);
+              const cat = e.target.value;
+              setPurchaseCategory(cat);
+              const p = presets.find((x) => x.category === cat);
               if (p?.field_keys?.length) setFields(p.field_keys as PurchaseFieldKey[]);
             }}
             className="h-9 rounded-md border bg-background px-2 text-sm"
-            aria-label="Format preset"
+            aria-label="Purchase category"
           >
-            <option value="">No preset</option>
-            {presets.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
+            <option value="">Purchase category…</option>
+            {categoryNames.map((c) => (
+              <option key={c} value={c}>
+                {c}
               </option>
             ))}
           </select>
+
           <CategoryFilterButton
             categories={categoryNames}
             selected={selectedCategories}

@@ -24,7 +24,10 @@ const Input = z.object({
   allowedCategories: z.array(z.string()).optional(),
   /** Optional format preset to train the extraction on. */
   presetId: z.string().uuid().optional(),
+  /** Category this purchase belongs to — selects a trained preset and scopes matching. */
+  presetCategory: z.string().optional(),
 });
+
 
 
 export type PurchaseLine = {
@@ -115,12 +118,17 @@ export const processPurchase = createServerFn({ method: "POST" })
     };
 
     const inventory = await fetchAllInventory();
-    const allowed = data.allowedCategories && data.allowedCategories.length
-      ? new Set(data.allowedCategories.map((c) => c.trim()).filter(Boolean))
-      : null;
+    const categoryScope = [
+      ...(data.allowedCategories ?? []),
+      ...(data.presetCategory ? [data.presetCategory] : []),
+    ]
+      .map((c) => c.trim())
+      .filter(Boolean);
+    const allowed = categoryScope.length ? new Set(categoryScope) : null;
     const scopedInventory = allowed
       ? inventory.filter((i) => allowed.has((i.category ?? "").trim()))
       : inventory;
+
 
     const invList = scopedInventory
       .slice(0, 4000)
@@ -132,18 +140,32 @@ export const processPurchase = createServerFn({ method: "POST" })
     // ---- Format preset ("training" samples) ----
     type PresetRow = {
       name: string;
-      supplier_hint: string;
+      category: string;
       notes: string;
       sample_paths: string[];
       sample_mimes: string[];
+      output_paths: string[];
+      output_mimes: string[];
       output_example: unknown;
     };
+    const PRESET_COLS =
+      "name,category,notes,sample_paths,sample_mimes,output_paths,output_mimes,output_example";
     let preset: PresetRow | null = null;
     if (data.presetId) {
       const { data: p } = await supabase
         .from("purchase_presets")
-        .select("name,supplier_hint,notes,sample_paths,sample_mimes,output_example")
+        .select(PRESET_COLS)
         .eq("id", data.presetId)
+        .maybeSingle();
+      preset = (p as PresetRow | null) ?? null;
+    } else if (data.presetCategory?.trim()) {
+      const { data: p } = await supabase
+        .from("purchase_presets")
+        .select(PRESET_COLS)
+        .eq("category", data.presetCategory.trim())
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
       preset = (p as PresetRow | null) ?? null;
     }
@@ -158,32 +180,52 @@ export const processPurchase = createServerFn({ method: "POST" })
       return btoa(binary);
     };
 
-    const examples: { imageBase64: string; mimeType: string; outputJson: string }[] = [];
+    const downloadB64 = async (path: string, fallbackMime: string) => {
+      try {
+        const dl = await supabase.storage.from("quotation-images").download(path);
+        if (dl.error || !dl.data) return null;
+        const buf = await dl.data.arrayBuffer();
+        if (buf.byteLength > 6_000_000) return null;
+        return { base64: toBase64(buf), mimeType: fallbackMime || "image/jpeg" };
+      } catch {
+        return null;
+      }
+    };
+
+    const examples: {
+      imageBase64: string;
+      mimeType: string;
+      outputJson: string;
+      outputImages?: { base64: string; mimeType: string }[];
+    }[] = [];
     if (preset) {
       const outputJson = JSON.stringify(preset.output_example ?? {});
+      const outputImages: { base64: string; mimeType: string }[] = [];
+      const outPaths = (preset.output_paths ?? []).slice(0, 2);
+      for (let i = 0; i < outPaths.length; i++) {
+        const img = await downloadB64(outPaths[i], preset.output_mimes?.[i] || "image/jpeg");
+        if (img) outputImages.push(img);
+      }
       const paths = (preset.sample_paths ?? []).slice(0, 2);
       for (let i = 0; i < paths.length; i++) {
-        try {
-          const dl = await supabase.storage.from("quotation-images").download(paths[i]);
-          if (dl.error || !dl.data) continue;
-          const buf = await dl.data.arrayBuffer();
-          if (buf.byteLength > 6_000_000) continue;
-          examples.push({
-            imageBase64: toBase64(buf),
-            mimeType: preset.sample_mimes?.[i] || "image/jpeg",
-            outputJson,
-          });
-        } catch {
-          // ignore unreadable sample
-        }
+        const img = await downloadB64(paths[i], preset.sample_mimes?.[i] || "image/jpeg");
+        if (!img) continue;
+        examples.push({
+          imageBase64: img.base64,
+          mimeType: img.mimeType,
+          outputJson,
+          outputImages: i === 0 && outputImages.length ? outputImages : undefined,
+        });
       }
     }
 
     const presetBlock = preset
-      ? `\n\n== FORMAT PRESET: ${preset.name} ==\nThis supplier's document layout has been trained by the user.${
-          preset.supplier_hint ? ` Expected supplier: ${preset.supplier_hint}.` : ""
-        }\nFollow these layout rules exactly:\n${preset.notes || "(no extra notes)"}\nThe TRAINING EXAMPLE turns above show a sample document and the exactly-correct JSON output for it. Mirror that reading strategy, column mapping and value conventions.\n`
+      ? `\n\n== FORMAT PRESET: ${preset.name} ==\nThis document layout has been trained by the user${
+          preset.category ? ` for the category "${preset.category}"` : ""
+        }.\nFollow these layout rules exactly:\n${preset.notes || "(no extra notes)"}\nThe TRAINING EXAMPLE turns above show a sample document and the exactly-correct expected output for it (as JSON and/or as image(s) of the correct result — read the text off those images). Mirror that reading strategy, column mapping and value conventions.\n`
       : "";
+
+
 
     const systemPrompt = `You are an expert at reading supplier / vendor purchase invoices (GST bills) for an electrical & building-materials shop. Bills may be printed or photographed and can be noisy.
 ${presetBlock}

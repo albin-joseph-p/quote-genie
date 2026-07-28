@@ -129,6 +129,7 @@ export type Database = {
       }
       purchase_presets: {
         Row: {
+          category: string
           created_at: string
           created_by: string | null
           field_keys: string[]
@@ -137,12 +138,15 @@ export type Database = {
           name: string
           notes: string
           output_example: Json
+          output_mimes: string[]
+          output_paths: string[]
           sample_mimes: string[]
           sample_paths: string[]
           supplier_hint: string
           updated_at: string
         }
         Insert: {
+          category?: string
           created_at?: string
           created_by?: string | null
           field_keys?: string[]
@@ -151,12 +155,15 @@ export type Database = {
           name: string
           notes?: string
           output_example?: Json
+          output_mimes?: string[]
+          output_paths?: string[]
           sample_mimes?: string[]
           sample_paths?: string[]
           supplier_hint?: string
           updated_at?: string
         }
         Update: {
+          category?: string
           created_at?: string
           created_by?: string | null
           field_keys?: string[]
@@ -165,6 +172,8 @@ export type Database = {
           name?: string
           notes?: string
           output_example?: Json
+          output_mimes?: string[]
+          output_paths?: string[]
           sample_mimes?: string[]
           sample_paths?: string[]
           supplier_hint?: string

@@ -5,6 +5,8 @@ export type GeminiExample = {
   imageBase64: string;
   mimeType: string;
   outputJson: string;
+  /** Images of the expected output (AI reads the text off them). */
+  outputImages?: { base64: string; mimeType: string }[];
 };
 
 export async function callGeminiAiStudio(params: {
@@ -20,16 +22,40 @@ export async function callGeminiAiStudio(params: {
   const model = params.model ?? "gemini-2.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(params.apiKey)}`;
 
-  const exampleTurns = (params.examples ?? []).flatMap((ex) => [
-    {
-      role: "user",
-      parts: [
-        { text: "TRAINING EXAMPLE — extract this document." },
-        { inline_data: { mime_type: ex.mimeType, data: ex.imageBase64 } },
-      ],
-    },
-    { role: "model", parts: [{ text: ex.outputJson }] },
-  ]);
+  const exampleTurns = (params.examples ?? []).flatMap((ex) => {
+    const outImgs = ex.outputImages ?? [];
+    return [
+      {
+        role: "user",
+        parts: [
+          { text: "TRAINING EXAMPLE — this is the source document to extract." },
+          { inline_data: { mime_type: ex.mimeType, data: ex.imageBase64 } },
+          ...(outImgs.length
+            ? [
+                {
+                  text: "The following image(s) show the CORRECT expected output for the document above. Read the text off them and treat those exact values, columns and conventions as the target result.",
+                },
+                ...outImgs.map((o) => ({
+                  inline_data: { mime_type: o.mimeType, data: o.base64 },
+                })),
+              ]
+            : []),
+        ],
+      },
+      {
+        role: "model",
+        parts: [
+          {
+            text:
+              ex.outputJson && ex.outputJson !== "{}"
+                ? ex.outputJson
+                : "Understood — I will produce JSON matching the expected-output image exactly in structure and value conventions.",
+          },
+        ],
+      },
+    ];
+  });
+
 
   const body = {
     systemInstruction: { parts: [{ text: params.systemPrompt }] },
