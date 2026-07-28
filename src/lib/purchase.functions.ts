@@ -235,6 +235,8 @@ ${invList || "(empty)"}`;
         userText,
         imageBase64: data.imageBase64,
         mimeType: data.mimeType,
+        examples: examples.length ? examples : undefined,
+
       });
     } catch (err: unknown) {
       const e = asAiError(err);
