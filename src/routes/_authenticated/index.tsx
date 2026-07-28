@@ -45,6 +45,7 @@ type InventoryRow = {
   item_name: string;
   category: string | null;
   brand: string;
+  comp_code: string | null;
 };
 
 type Row = {
@@ -54,6 +55,7 @@ type Row = {
   category: string | null;
   qty: number;
   aiItemCode: string | null; // original AI pick (for "edited" highlight)
+  brandWarning?: string | null;
 };
 
 
@@ -152,7 +154,7 @@ function Workspace() {
   const inventoryQ = useQuery({
     queryKey: ["inventory"],
     queryFn: async () =>
-      fetchAllRows<InventoryRow>("inventory", "item_code,item_name,category,brand"),
+      fetchAllRows<InventoryRow>("inventory", "item_code,item_name,category,brand,comp_code"),
   });
 
   const defaultsQ = useQuery({
