@@ -129,7 +129,65 @@ export const processPurchase = createServerFn({ method: "POST" })
 
     const fieldList = data.fields.join(", ");
 
+    // ---- Format preset ("training" samples) ----
+    type PresetRow = {
+      name: string;
+      supplier_hint: string;
+      notes: string;
+      sample_paths: string[];
+      sample_mimes: string[];
+      output_example: unknown;
+    };
+    let preset: PresetRow | null = null;
+    if (data.presetId) {
+      const { data: p } = await supabase
+        .from("purchase_presets")
+        .select("name,supplier_hint,notes,sample_paths,sample_mimes,output_example")
+        .eq("id", data.presetId)
+        .maybeSingle();
+      preset = (p as PresetRow | null) ?? null;
+    }
+
+    const toBase64 = (buf: ArrayBuffer) => {
+      const bytes = new Uint8Array(buf);
+      let binary = "";
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+      }
+      return btoa(binary);
+    };
+
+    const examples: { imageBase64: string; mimeType: string; outputJson: string }[] = [];
+    if (preset) {
+      const outputJson = JSON.stringify(preset.output_example ?? {});
+      const paths = (preset.sample_paths ?? []).slice(0, 2);
+      for (let i = 0; i < paths.length; i++) {
+        try {
+          const dl = await supabase.storage.from("quotation-images").download(paths[i]);
+          if (dl.error || !dl.data) continue;
+          const buf = await dl.data.arrayBuffer();
+          if (buf.byteLength > 6_000_000) continue;
+          examples.push({
+            imageBase64: toBase64(buf),
+            mimeType: preset.sample_mimes?.[i] || "image/jpeg",
+            outputJson,
+          });
+        } catch {
+          // ignore unreadable sample
+        }
+      }
+    }
+
+    const presetBlock = preset
+      ? `\n\n== FORMAT PRESET: ${preset.name} ==\nThis supplier's document layout has been trained by the user.${
+          preset.supplier_hint ? ` Expected supplier: ${preset.supplier_hint}.` : ""
+        }\nFollow these layout rules exactly:\n${preset.notes || "(no extra notes)"}\nThe TRAINING EXAMPLE turns above show a sample document and the exactly-correct JSON output for it. Mirror that reading strategy, column mapping and value conventions.\n`
+      : "";
+
     const systemPrompt = `You are an expert at reading supplier / vendor purchase invoices (GST bills) for an electrical & building-materials shop. Bills may be printed or photographed and can be noisy.
+${presetBlock}
+
 
 TASK:
 1. Extract HEADER info: supplier / vendor name, invoice number, invoice date.
