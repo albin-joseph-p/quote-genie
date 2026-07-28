@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllRows } from "@/lib/fetch-all";
+import { inventoryQueryOptions } from "@/lib/inventory-query";
 import type { PurchaseFieldKey } from "@/lib/purchase.functions";
 
 export const Route = createFileRoute("/_authenticated/presets")({
@@ -104,9 +104,8 @@ function PresetsPage() {
   });
 
   const { data: inventory = [] } = useQuery({
-    queryKey: ["inventory-preset-categories"],
-    queryFn: () => fetchAllRows<InventoryRow>("inventory", "item_code,category"),
-    staleTime: 60_000,
+    ...inventoryQueryOptions,
+    select: (rows) => rows as InventoryRow[],
   });
 
   const categoryNames = useMemo(() => {

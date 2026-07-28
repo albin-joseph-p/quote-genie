@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllRows } from "@/lib/fetch-all";
+import { inventoryQueryOptions } from "@/lib/inventory-query";
 
 export const Route = createFileRoute("/_authenticated/synonyms")({
   head: () => ({
@@ -221,11 +221,7 @@ function SynonymsPage() {
       return (data ?? []) as Syn[];
     },
   });
-  const invQ = useQuery({
-    queryKey: ["inventory"],
-    queryFn: async () =>
-      fetchAllRows<Inv>("inventory", "item_code,item_name,category,brand"),
-  });
+  const invQ = useQuery({ ...inventoryQueryOptions, select: (rows) => rows as Inv[] });
 
   const add = useMutation({
     mutationFn: async () => {

@@ -36,7 +36,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { processQuotation } from "@/lib/quote.functions";
 import { cn } from "@/lib/utils";
-import { fetchAllRows } from "@/lib/fetch-all";
+import { inventoryQueryOptions } from "@/lib/inventory-query";
 import { AnnotationEditor, type Annotation } from "@/components/annotation-editor";
 import { ZoomPanViewer } from "@/components/zoom-pan-viewer";
 
@@ -151,11 +151,7 @@ function Workspace() {
     }
   }, []);
 
-  const inventoryQ = useQuery({
-    queryKey: ["inventory"],
-    queryFn: async () =>
-      fetchAllRows<InventoryRow>("inventory", "item_code,item_name,category,brand,comp_code"),
-  });
+  const inventoryQ = useQuery(inventoryQueryOptions);
 
   const defaultsQ = useQuery({
     queryKey: ["category_defaults"],

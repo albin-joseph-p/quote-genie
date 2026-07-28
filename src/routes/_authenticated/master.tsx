@@ -25,7 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllRows } from "@/lib/fetch-all";
+import { inventoryQueryOptions, clearInventoryCache } from "@/lib/inventory-query";
 
 export const Route = createFileRoute("/_authenticated/master")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -74,11 +74,7 @@ function MasterPage() {
   });
   const [deleteCode, setDeleteCode] = useState<string | null>(null);
 
-  const invQ = useQuery({
-    queryKey: ["inventory"],
-    queryFn: async () =>
-      fetchAllRows<Inv>("inventory", "item_code,item_name,category,brand,comp_code"),
-  });
+  const invQ = useQuery({ ...inventoryQueryOptions, select: (rows) => rows as Inv[] });
 
 
   const wipe = useMutation({
@@ -87,6 +83,7 @@ function MasterPage() {
       if (error) throw error;
     },
     onSuccess: () => {
+      clearInventoryCache();
       qc.invalidateQueries({ queryKey: ["inventory"] });
       toast.success("Inventory cleared");
     },
@@ -104,6 +101,7 @@ function MasterPage() {
       if (error) throw error;
     },
     onSuccess: () => {
+      clearInventoryCache();
       qc.invalidateQueries({ queryKey: ["inventory"] });
       toast.success("Item updated");
       setEditingCode(null);
@@ -119,8 +117,9 @@ function MasterPage() {
       if (error) throw error;
     },
     onSuccess: () => {
+      clearInventoryCache();
       qc.invalidateQueries({ queryKey: ["inventory"] });
-      qc.invalidateQueries({ queryKey: ["inventory", "taxonomy"] });
+      
       toast.success("Item added");
       setAddOpen(false);
       setAddDraft({ item_code: "", item_name: "", category: "", brand: "", comp_code: "" });
@@ -135,8 +134,9 @@ function MasterPage() {
       if (error) throw error;
     },
     onSuccess: () => {
+      clearInventoryCache();
       qc.invalidateQueries({ queryKey: ["inventory"] });
-      qc.invalidateQueries({ queryKey: ["inventory", "taxonomy"] });
+      
       toast.success("Item deleted");
       setDeleteCode(null);
     },
@@ -239,8 +239,9 @@ function MasterPage() {
         if (error) throw error;
       }
 
+      clearInventoryCache();
       qc.invalidateQueries({ queryKey: ["inventory"] });
-      qc.invalidateQueries({ queryKey: ["inventory", "taxonomy"] });
+      
       const withCat = deduped.filter((r) => r.category).length;
       toast.success(`Imported ${deduped.length} items (${withCat} with category)${deduped.length !== normalized.length ? ` — ${normalized.length - deduped.length} duplicates merged` : ""}`);
     } catch (e) {

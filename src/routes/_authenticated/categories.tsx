@@ -15,7 +15,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { fetchAllRows } from "@/lib/fetch-all";
+import { inventoryQueryOptions } from "@/lib/inventory-query";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -34,10 +34,7 @@ type DefaultRow = { category: string; brand: string };
 
 function CategoriesPage() {
   const qc = useQueryClient();
-  const invQ = useQuery({
-    queryKey: ["inventory", "taxonomy"],
-    queryFn: () => fetchAllRows<InvRow>("inventory", "item_code,category,brand"),
-  });
+  const invQ = useQuery({ ...inventoryQueryOptions, select: (rows) => rows as InvRow[] });
 
   const defaultsQ = useQuery({
     queryKey: ["category_defaults"],
