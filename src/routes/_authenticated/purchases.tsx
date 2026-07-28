@@ -184,6 +184,8 @@ function PurchaseWorkspace() {
             mimeType: mime,
             fields,
             allowedCategories: selectedCategories.length ? selectedCategories : undefined,
+            presetId: selectedPresetId || undefined,
+
           },
         });
         if (res.error) {
