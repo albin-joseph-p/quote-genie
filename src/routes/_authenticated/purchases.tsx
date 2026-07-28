@@ -314,6 +314,24 @@ function PurchaseWorkspace() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <select
+            value={selectedPresetId}
+            onChange={(e) => {
+              const id = e.target.value;
+              setSelectedPresetId(id);
+              const p = presets.find((x) => x.id === id);
+              if (p?.field_keys?.length) setFields(p.field_keys as PurchaseFieldKey[]);
+            }}
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            aria-label="Format preset"
+          >
+            <option value="">No preset</option>
+            {presets.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
           <CategoryFilterButton
             categories={categoryNames}
             selected={selectedCategories}
@@ -323,6 +341,7 @@ function PurchaseWorkspace() {
           />
           <FieldPicker fields={fields} toggleField={toggleField} />
         </div>
+
       </div>
 
       <Card className="p-6 space-y-4">
