@@ -34,7 +34,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { processPurchase, type PurchaseFieldKey, type PurchaseLine } from "@/lib/purchase.functions";
-import { fetchAllRows } from "@/lib/fetch-all";
+import { inventoryQueryOptions } from "@/lib/inventory-query";
 import { cn } from "@/lib/utils";
 
 type InventoryRow = { item_code: string; item_name: string; category: string | null; brand: string };
@@ -121,9 +121,8 @@ function PurchaseWorkspace() {
 
 
   const { data: inventory = [] } = useQuery({
-    queryKey: ["inventory-purchase"],
-    queryFn: () => fetchAllRows<InventoryRow>("inventory", "item_code,item_name,category,brand"),
-    staleTime: 60_000,
+    ...inventoryQueryOptions,
+    select: (rows) => rows as InventoryRow[],
   });
 
   const categoryNames = useMemo(() => {
