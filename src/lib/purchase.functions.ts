@@ -22,7 +22,10 @@ const Input = z.object({
   mimeType: z.string().min(1),
   fields: z.array(z.enum(FIELD_KEYS)).min(1),
   allowedCategories: z.array(z.string()).optional(),
+  /** Optional format preset to train the extraction on. */
+  presetId: z.string().uuid().optional(),
 });
+
 
 export type PurchaseLine = {
   itemName: string;
