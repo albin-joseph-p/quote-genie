@@ -277,7 +277,20 @@ Return ONLY valid JSON, no markdown fences, shape:
 == MASTER INVENTORY (item_code | item_name | category | brand) ==
 ${invList || "(empty)"}`;
 
-    const userText = "Extract header + line items from this purchase invoice image per the rules.";
+    const annotations = data.annotations ?? [];
+    const fmtPct = (n: number) => `${Math.round(n * 100)}%`;
+    const annotationBlock =
+      annotations.length > 0
+        ? `\n\n== USER MANUAL ANNOTATIONS (HIGH PRIORITY HINTS) ==\nThe user drew bounding boxes on this bill and classified each region. Coordinates are percentages of the image (x,y = top-left; w,h = width/height). Treat them as authoritative hints about what each region contains: "Item" marks a line-item name, "Quantity" marks that line's quantity, "Category"/"Brand" constrain matching for items inside their region, and "Group End" closes the preceding region. If a box has "text", trust that as the correct reading.\n\n"Exclude" regions are strike-outs, cuttings, or cancelled rows. Completely ignore all content inside every Exclude box — do not extract line items from it and do not let it affect totals or matches. Treat those pixels as blank.\n\n${annotations
+            .map(
+              (a, i) =>
+                `#${i + 1} ${a.label} at [x=${fmtPct(a.x)}, y=${fmtPct(a.y)}, w=${fmtPct(a.w)}, h=${fmtPct(a.h)}]${a.text ? ` — text: "${a.text}"` : ""}`,
+            )
+            .join("\n")}`
+        : "";
+
+    const userText =
+      "Extract header + line items from this purchase invoice image per the rules." + annotationBlock;
 
     let rawText: string;
     try {
