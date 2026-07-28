@@ -45,6 +45,7 @@ type InventoryRow = {
   item_name: string;
   category: string | null;
   brand: string;
+  comp_code: string | null;
 };
 
 type Row = {
@@ -54,6 +55,7 @@ type Row = {
   category: string | null;
   qty: number;
   aiItemCode: string | null; // original AI pick (for "edited" highlight)
+  brandWarning?: string | null;
 };
 
 
@@ -152,7 +154,7 @@ function Workspace() {
   const inventoryQ = useQuery({
     queryKey: ["inventory"],
     queryFn: async () =>
-      fetchAllRows<InventoryRow>("inventory", "item_code,item_name,category,brand"),
+      fetchAllRows<InventoryRow>("inventory", "item_code,item_name,category,brand,comp_code"),
   });
 
   const defaultsQ = useQuery({
@@ -584,63 +586,43 @@ function Workspace() {
     return s;
   };
 
+  // Brand switching is a deterministic comp_code lookup — no AI / fuzzy
+  // mapping. The selected item's comp_code identifies the equivalent product
+  // across brands; if the target brand has no item with that comp_code (or the
+  // comp_code is empty) we keep the original item and flag the row.
   const applyBrandToCategory = (categoryName: string, brandName: string) => {
     setBrandByCategory((m) => ({ ...m, [categoryName]: brandName }));
+    let unmatched = 0;
     setRows((rs) =>
       rs.map((r) => {
         if (r.category !== categoryName) return r;
-        const brandMatches = inventory.filter((i) => i.brand === brandName);
-        if (brandMatches.length === 0) return { ...r, itemCode: null };
-        const withCat = brandMatches.filter((i) => (i.category ?? "") === categoryName);
-        let candidates = withCat.length > 0 ? withCat : brandMatches;
-        // Preserve product-type intent: candidate must share ≥1 non-numeric
-        // token with the customer's extracted text (e.g. "plate"). Also allow
-        // the previously matched item's tokens so an AI match on "modi plate"
-        // that resolved to "PLATE 1M ANCHOR GINA" still contributes "plate".
-        const intent = typeTokens(r.extractedText);
-        const prevInv = r.itemCode ? invByCode.get(r.itemCode) : undefined;
-        if (prevInv) for (const t of typeTokens(prevInv.item_name)) intent.add(t);
-        // Drop the newly chosen brand's own tokens so "elleys"/"gama" can't
-        // stand in for a real product-type match.
-        for (const t of typeTokens(brandName)) intent.delete(t);
-        if (intent.size > 0) {
-          const filtered = candidates.filter((c) => {
-            const ct = typeTokens(c.item_name);
-            for (const t of intent) if (ct.has(t)) return true;
-            return false;
-          });
-          candidates = filtered;
+        const current = r.itemCode ? invByCode.get(r.itemCode) : undefined;
+        const compCode = (current?.comp_code ?? "").trim();
+        if (!current || !compCode) {
+          unmatched += 1;
+          return { ...r, brandWarning: "No equivalent found in target brand" };
         }
-        if (candidates.length === 0) return { ...r, itemCode: null };
-        // Way-count pre-filter: if the extracted text specifies N-way, drop
-        // candidates that specify a different N-way. Never coerce to a wrong
-        // way-count variant (e.g. "Two way Switch" → "1 WAY SWITCH").
-        const waysWanted = extractWayCount(r.extractedText);
-        if (waysWanted.size > 0) {
-          const wayFiltered = candidates.filter((c) => {
-            const cw = extractWayCount(c.item_name);
-            if (cw.size === 0) return true; // candidate is way-agnostic
-            for (const w of waysWanted) if (cw.has(w)) return true;
-            return false;
-          });
-          if (wayFiltered.length > 0) candidates = wayFiltered;
-          else return { ...r, itemCode: null };
+        if ((current.brand ?? "").trim() === brandName) {
+          return { ...r, brandWarning: null };
         }
-        let best: InventoryRow | null = null;
-        let bestScore = 0;
-        for (const c of candidates) {
-          const s = score(r.extractedText, c.item_name);
-          if (s > bestScore) {
-            bestScore = s;
-            best = c;
-          }
+        const equivalent = inventory.find(
+          (i) => (i.brand ?? "").trim() === brandName && (i.comp_code ?? "").trim() === compCode,
+        );
+        if (!equivalent) {
+          unmatched += 1;
+          return { ...r, brandWarning: "No equivalent found in target brand" };
         }
-        // A wrong-size / wrong-type match is worse than no match — leave
-        // itemCode null so the row is flagged and the user can override.
-        return { ...r, itemCode: best ? best.item_code : null };
+        // Swap in the target brand's equivalent item, keeping the quantity.
+        return { ...r, itemCode: equivalent.item_code, brandWarning: null };
       }),
     );
+    if (unmatched > 0) {
+      toast.warning(
+        `${unmatched} item${unmatched === 1 ? "" : "s"} kept — no equivalent comp code in ${brandName}`,
+      );
+    }
   };
+
 
   const handleExportXlsx = async () => {
     const XLSX = await import("xlsx");
@@ -998,8 +980,11 @@ function Workspace() {
                             />
                           </td>
                           <td className="p-3">
-                            {!r.itemCode ? (
+                            {r.brandWarning ? (
+                              <Badge variant="destructive">{r.brandWarning}</Badge>
+                            ) : !r.itemCode ? (
                               <Badge variant="destructive">No match</Badge>
+
                             ) : edited ? (
                               <Badge className="bg-[var(--color-edited)] text-foreground border border-border">
                                 <Pencil className="h-3 w-3 mr-1" /> Overridden

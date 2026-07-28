@@ -45,10 +45,10 @@ type Inv = {
   item_name: string;
   category: string | null;
   brand: string;
-  remarks: string;
+  comp_code: string;
 };
 
-type Draft = { item_name: string; category: string; brand: string; remarks: string };
+type Draft = { item_name: string; category: string; brand: string; comp_code: string };
 
 const REQUIRED = ["item_code", "item_name"];
 
@@ -65,19 +65,19 @@ function MasterPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [addDraft, setAddDraft] = useState<{ item_code: string; item_name: string; category: string; brand: string; remarks: string }>({
+  const [addDraft, setAddDraft] = useState<{ item_code: string; item_name: string; category: string; brand: string; comp_code: string }>({
     item_code: "",
     item_name: "",
     category: "",
     brand: "",
-    remarks: "",
+    comp_code: "",
   });
   const [deleteCode, setDeleteCode] = useState<string | null>(null);
 
   const invQ = useQuery({
     queryKey: ["inventory"],
     queryFn: async () =>
-      fetchAllRows<Inv>("inventory", "item_code,item_name,category,brand,remarks"),
+      fetchAllRows<Inv>("inventory", "item_code,item_name,category,brand,comp_code"),
   });
 
 
@@ -95,7 +95,7 @@ function MasterPage() {
   const updateRow = useMutation({
     mutationFn: async (payload: {
       item_code: string;
-      patch: { item_name: string; category: string | null; brand: string; remarks: string };
+      patch: { item_name: string; category: string | null; brand: string; comp_code: string };
     }) => {
       const { error } = await supabase
         .from("inventory")
@@ -123,7 +123,7 @@ function MasterPage() {
       qc.invalidateQueries({ queryKey: ["inventory", "taxonomy"] });
       toast.success("Item added");
       setAddOpen(false);
-      setAddDraft({ item_code: "", item_name: "", category: "", brand: "", remarks: "" });
+      setAddDraft({ item_code: "", item_name: "", category: "", brand: "", comp_code: "" });
     },
     onError: (e) => toast.error((e as Error).message),
   });
@@ -185,9 +185,12 @@ function MasterPage() {
       // Detect columns by substring so headers like "Product Category",
       // "Item Cat.", "Category Type" all resolve to the right field.
       const findKey = (test: (k: string) => boolean) => keys.find(test);
+      const compCodeKey =
+        findKey((k) => ["comp_code", "compcode", "comp code", "comparison_code", "comp"].includes(k)) ??
+        findKey((k) => k.includes("comp"));
       const codeKey =
         findKey((k) => ["item_code", "code", "sku"].includes(k)) ??
-        findKey((k) => k.includes("code") || k === "sku" || k === "item");
+        findKey((k) => k !== compCodeKey && (k.includes("code") || k === "sku" || k === "item"));
       const nameKey =
         findKey((k) => ["item_name", "name", "description", "product_name", "product"].includes(k)) ??
         findKey((k) => k.includes("name") || k.includes("desc") || k.includes("product"));
@@ -197,14 +200,12 @@ function MasterPage() {
       const brandKey =
         findKey((k) => ["brand", "make", "manufacturer"].includes(k)) ??
         findKey((k) => k.includes("brand") || k.includes("make") || k.includes("manuf"));
-      const remarksKey =
-        findKey((k) => ["remarks", "remark", "notes", "note", "comment", "comments"].includes(k)) ??
-        findKey((k) => k.includes("remark") || k.includes("note") || k.includes("comment"));
+
 
       if (!codeKey || !nameKey) {
         throw new Error(`Missing required columns. Found: ${keys.join(", ")}`);
       }
-      console.log("[master upload] column mapping:", { codeKey, nameKey, catKey, brandKey, remarksKey, allKeys: keys });
+      console.log("[master upload] column mapping:", { codeKey, nameKey, catKey, brandKey, compCodeKey, allKeys: keys });
 
       const val = (r: Record<string, unknown>, k: string | undefined) =>
         k ? String(r[k] ?? "").trim() : "";
@@ -215,7 +216,7 @@ function MasterPage() {
           item_name: val(r, nameKey),
           category: val(r, catKey) || null,
           brand: val(r, brandKey),
-          remarks: val(r, remarksKey),
+          comp_code: val(r, compCodeKey),
         }))
         .filter((r) => r.item_code && r.item_name);
 
@@ -253,7 +254,7 @@ function MasterPage() {
 
   const downloadTemplate = () => {
     const csv =
-      "item_code,item_name,category,brand,remarks\n" +
+      "item_code,item_name,category,brand,comp_code\n" +
       "ELEC-FIN-15,1.5 sqmm Wire (90m),Wires,Finolex,\n" +
       "ELEC-POL-15,1.5 sqmm Wire (90m),Wires,Polycab,\n" +
       "SAN-JAQ-BSN,Basin Mixer,Plumbing,Jaquar,\n";
@@ -277,10 +278,10 @@ function MasterPage() {
       toast.error("No inventory to export");
       return;
     }
-    const header = ["item_code", "item_name", "category", "brand", "remarks"];
+    const header = ["item_code", "item_name", "category", "brand", "comp_code"];
     const body = rows
       .map((r) =>
-        [r.item_code, r.item_name, r.category ?? "", r.brand ?? "", r.remarks ?? ""]
+        [r.item_code, r.item_name, r.category ?? "", r.brand ?? "", r.comp_code ?? ""]
           .map((v) => csvEscape(String(v)))
           .join(","),
       )
@@ -299,7 +300,7 @@ function MasterPage() {
 
   const startEdit = (r: Inv) => {
     setEditingCode(r.item_code);
-    setDraft({ item_name: r.item_name, category: r.category ?? "", brand: r.brand ?? "", remarks: r.remarks ?? "" });
+    setDraft({ item_name: r.item_name, category: r.category ?? "", brand: r.brand ?? "", comp_code: r.comp_code ?? "" });
   };
 
   const cancelEdit = () => {
@@ -327,11 +328,11 @@ function MasterPage() {
     const name = draft.item_name.trim();
     const cat = draft.category.trim();
     const brand = draft.brand.trim();
-    const remarks = draft.remarks.trim();
+    const comp_code = draft.comp_code.trim();
     if (name !== editingOriginal.item_name) out.push({ field: "Name", old: editingOriginal.item_name, next: name });
     if (cat !== (editingOriginal.category ?? "")) out.push({ field: "Category", old: editingOriginal.category ?? "—", next: cat || "—" });
     if (brand !== (editingOriginal.brand ?? "")) out.push({ field: "Brand", old: editingOriginal.brand || "—", next: brand || "—" });
-    if (remarks !== (editingOriginal.remarks ?? "")) out.push({ field: "Remarks", old: editingOriginal.remarks || "—", next: remarks || "—" });
+    if (comp_code !== (editingOriginal.comp_code ?? "")) out.push({ field: "Comp code", old: editingOriginal.comp_code || "—", next: comp_code || "—" });
     return out;
   }, [editingOriginal, draft]);
 
@@ -350,7 +351,7 @@ function MasterPage() {
         item_name: draft.item_name.trim(),
         category: draft.category.trim() || null,
         brand: draft.brand.trim(),
-        remarks: draft.remarks.trim(),
+        comp_code: draft.comp_code.trim(),
       },
     });
   };
@@ -367,7 +368,7 @@ function MasterPage() {
       item_name,
       category: addDraft.category.trim() || null,
       brand: addDraft.brand.trim(),
-      remarks: addDraft.remarks.trim(),
+      comp_code: addDraft.comp_code.trim(),
     });
   };
 
@@ -466,7 +467,7 @@ function MasterPage() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Required: <code>item_code, item_name</code>. Optional: <code>category, brand, remarks</code>.
+          Required: <code>item_code, item_name</code>. Optional: <code>category, brand, comp_code</code>.
         </p>
 
         <div className="flex items-center gap-2">
@@ -497,7 +498,7 @@ function MasterPage() {
                 <th className="text-left p-3 font-medium">Item Name</th>
                 <th className="text-left p-3 font-medium w-40">Category</th>
                 <th className="text-left p-3 font-medium w-40">Brand</th>
-                <th className="text-left p-3 font-medium w-56">Remarks</th>
+                <th className="text-left p-3 font-medium w-56">Comp code</th>
                 <th className="text-right p-3 font-medium w-28">Actions</th>
               </tr>
             </thead>
@@ -550,13 +551,13 @@ function MasterPage() {
                     <td className="p-3">
                       {isEditing ? (
                         <Input
-                          value={draft!.remarks}
-                          onChange={(e) => setDraft({ ...draft!, remarks: e.target.value })}
+                          value={draft!.comp_code}
+                          onChange={(e) => setDraft({ ...draft!, comp_code: e.target.value })}
                           className="h-8"
                           placeholder="Add notes…"
                         />
                       ) : (
-                        r.remarks || <span className="text-muted-foreground">—</span>
+                        r.comp_code || <span className="text-muted-foreground">—</span>
                       )}
                     </td>
                     <td className="p-3 text-right">
@@ -723,10 +724,10 @@ function MasterPage() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Remarks</label>
+              <label className="text-xs font-medium text-muted-foreground">Comp code</label>
               <Input
-                value={addDraft.remarks}
-                onChange={(e) => setAddDraft({ ...addDraft, remarks: e.target.value })}
+                value={addDraft.comp_code}
+                onChange={(e) => setAddDraft({ ...addDraft, comp_code: e.target.value })}
                 placeholder="Optional notes"
               />
             </div>

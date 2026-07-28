@@ -1,0 +1,1 @@
+ALTER TABLE public.inventory RENAME COLUMN remarks TO comp_code;
