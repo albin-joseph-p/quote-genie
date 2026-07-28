@@ -185,9 +185,12 @@ function MasterPage() {
       // Detect columns by substring so headers like "Product Category",
       // "Item Cat.", "Category Type" all resolve to the right field.
       const findKey = (test: (k: string) => boolean) => keys.find(test);
+      const compCodeKey =
+        findKey((k) => ["comp_code", "compcode", "comp code", "comparison_code", "comp"].includes(k)) ??
+        findKey((k) => k.includes("comp"));
       const codeKey =
         findKey((k) => ["item_code", "code", "sku"].includes(k)) ??
-        findKey((k) => k.includes("code") || k === "sku" || k === "item");
+        findKey((k) => k !== compCodeKey && (k.includes("code") || k === "sku" || k === "item"));
       const nameKey =
         findKey((k) => ["item_name", "name", "description", "product_name", "product"].includes(k)) ??
         findKey((k) => k.includes("name") || k.includes("desc") || k.includes("product"));
@@ -197,9 +200,7 @@ function MasterPage() {
       const brandKey =
         findKey((k) => ["brand", "make", "manufacturer"].includes(k)) ??
         findKey((k) => k.includes("brand") || k.includes("make") || k.includes("manuf"));
-      const compCodeKey =
-        findKey((k) => ["comp_code", "remark", "notes", "note", "comment", "comments"].includes(k)) ??
-        findKey((k) => k.includes("remark") || k.includes("note") || k.includes("comment"));
+
 
       if (!codeKey || !nameKey) {
         throw new Error(`Missing required columns. Found: ${keys.join(", ")}`);
