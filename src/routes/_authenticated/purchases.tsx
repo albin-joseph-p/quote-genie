@@ -35,6 +35,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { processPurchase, type PurchaseFieldKey, type PurchaseLine } from "@/lib/purchase.functions";
 import { inventoryQueryOptions } from "@/lib/inventory-query";
+import { AnnotationEditor, type Annotation } from "@/components/annotation-editor";
+import { maskExcludedRegions, annotationsForAi } from "@/lib/image-mask";
 import { cn } from "@/lib/utils";
 
 type InventoryRow = { item_code: string; item_name: string; category: string | null; brand: string };
