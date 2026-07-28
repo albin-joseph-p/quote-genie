@@ -980,8 +980,11 @@ function Workspace() {
                             />
                           </td>
                           <td className="p-3">
-                            {!r.itemCode ? (
+                            {r.brandWarning ? (
+                              <Badge variant="destructive">{r.brandWarning}</Badge>
+                            ) : !r.itemCode ? (
                               <Badge variant="destructive">No match</Badge>
+
                             ) : edited ? (
                               <Badge className="bg-[var(--color-edited)] text-foreground border border-border">
                                 <Pencil className="h-3 w-3 mr-1" /> Overridden
