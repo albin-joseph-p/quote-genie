@@ -468,6 +468,51 @@ function PresetsPage() {
           </div>
         )}
       </Card>
+
+      {/* Annotate before adding as a training sample */}
+      <Dialog open={annotatePromptOpen} onOpenChange={setAnnotatePromptOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Annotate this sample?</DialogTitle>
+            <DialogDescription>
+              Draw boxes to point out the item, quantity, category or brand columns, and use Exclude
+              to mask out areas the AI should never learn from. The regions are saved into the
+              preset notes. Optional — skip to upload as-is.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAnnotatePromptOpen(false);
+                onUpload(filesForAnnotator, annotKind, {});
+              }}
+            >
+              Skip
+            </Button>
+            <Button
+              onClick={() => {
+                setAnnotatePromptOpen(false);
+                setAnnotatorOpen(true);
+              }}
+            >
+              Annotate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AnnotationEditor
+        open={annotatorOpen}
+        onOpenChange={setAnnotatorOpen}
+        files={filesForAnnotator}
+        initial={annotations}
+        onSubmit={(map) => {
+          setAnnotations(map);
+          setAnnotatorOpen(false);
+          onUpload(filesForAnnotator, annotKind, map);
+        }}
+      />
     </div>
   );
 }
