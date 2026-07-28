@@ -585,6 +585,54 @@ function PurchaseWorkspace() {
           </div>
         </Card>
       )}
+
+      {/* Annotate before processing? */}
+      <Dialog open={annotatePromptOpen} onOpenChange={setAnnotatePromptOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Annotate before processing?</DialogTitle>
+            <DialogDescription>
+              Draw boxes on the bill to mark item names, quantities, categories or brands, and use
+              Exclude to mask out struck-out or cancelled rows. Optional — skip to process straight
+              away.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAnnotatePromptOpen(false);
+                setHasAnnotatedBatch(false);
+                runProcessing(filesForAnnotator, {});
+              }}
+            >
+              Skip
+            </Button>
+            <Button
+              onClick={() => {
+                setAnnotatePromptOpen(false);
+                setAnnotatorOpen(true);
+              }}
+            >
+              Annotate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AnnotationEditor
+        open={annotatorOpen}
+        onOpenChange={setAnnotatorOpen}
+        files={filesForAnnotator}
+        initial={annotationsForBatch}
+        onSubmit={(map) => {
+          const wasProcessed = hasAnnotatedBatch || rows.length > 0;
+          setAnnotationsForBatch(map);
+          setHasAnnotatedBatch(true);
+          setAnnotatorOpen(false);
+          runProcessing(filesForAnnotator, map, wasProcessed);
+        }}
+      />
     </div>
   );
 }
