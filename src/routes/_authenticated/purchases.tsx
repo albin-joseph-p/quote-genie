@@ -437,6 +437,12 @@ function PurchaseWorkspace() {
           />
         </div>
 
+        {hasAnnotatedBatch && filesForAnnotator.length > 0 && !loading && (
+          <Button variant="outline" size="sm" onClick={() => setAnnotatorOpen(true)}>
+            View / edit annotations
+          </Button>
+        )}
+
         {previews.length > 0 && (
           <div className="flex gap-2 flex-wrap">
             {previews.map((p) => {
