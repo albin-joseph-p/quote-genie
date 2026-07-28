@@ -35,6 +35,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { processPurchase, type PurchaseFieldKey, type PurchaseLine } from "@/lib/purchase.functions";
 import { inventoryQueryOptions } from "@/lib/inventory-query";
+import { AnnotationEditor, type Annotation } from "@/components/annotation-editor";
+import { maskExcludedRegions, annotationsForAi } from "@/lib/image-mask";
 import { cn } from "@/lib/utils";
 
 type InventoryRow = { item_code: string; item_name: string; category: string | null; brand: string };
@@ -102,6 +104,13 @@ function PurchaseWorkspace() {
   const [fields, setFields] = useState<PurchaseFieldKey[]>(DEFAULT_FIELDS);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+
+  // Manual annotation flow
+  const [annotatePromptOpen, setAnnotatePromptOpen] = useState(false);
+  const [annotatorOpen, setAnnotatorOpen] = useState(false);
+  const [filesForAnnotator, setFilesForAnnotator] = useState<File[]>([]);
+  const [annotationsForBatch, setAnnotationsForBatch] = useState<Record<number, Annotation[]>>({});
+  const [hasAnnotatedBatch, setHasAnnotatedBatch] = useState(false);
   const [purchaseCategory, setPurchaseCategory] = useState<string>("");
 
   const { data: presets = [] } = useQuery({
@@ -159,30 +168,56 @@ function PurchaseWorkspace() {
       return;
     }
     const arr = Array.from(files);
+    // PDFs can't be annotated — process them straight away.
+    const hasImage = arr.some((f) => f.type.startsWith("image/"));
+    if (!hasImage) {
+      runProcessing(arr, {});
+      return;
+    }
+    setFilesForAnnotator(arr);
+    setAnnotationsForBatch({});
+    setAnnotatePromptOpen(true);
+  };
+
+  const runProcessing = async (
+    arr: File[],
+    annotationsMap: Record<number, Annotation[]>,
+    replace = false,
+  ) => {
+    if (replace) {
+      setRows([]);
+      setPreviews((ps) => {
+        ps.forEach((p) => p.url.startsWith("blob:") && URL.revokeObjectURL(p.url));
+        return [];
+      });
+      setUploadedPaths([]);
+    }
     setLoading(true);
     try {
       for (let idx = 0; idx < arr.length; idx++) {
         const file = arr[idx];
+        const anns = annotationsMap[idx] ?? [];
         const previewUrl = URL.createObjectURL(file);
         setPreviews((p) => [...p, { url: previewUrl, name: file.name }]);
 
+        // Burn "Exclude" boxes into the pixels before upload + AI.
+        const masked = await maskExcludedRegions(file, anns);
+
         // Upload
         const stamp = Date.now();
-        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-        const mime = file.type || (isPdf ? "application/pdf" : "image/jpeg");
         const path = `purchases/${stamp}-${idx}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-        const up = await supabase.storage.from("quotation-images").upload(path, file, {
-          contentType: mime,
+        const up = await supabase.storage.from("quotation-images").upload(path, masked.blob, {
+          contentType: masked.mimeType,
           upsert: false,
         });
         if (!up.error) setUploadedPaths((p) => [...p, up.data.path]);
 
-        const b64 = await fileToBase64(file);
         const res = await process({
           data: {
-            imageBase64: b64,
-            mimeType: mime,
+            imageBase64: masked.base64,
+            mimeType: masked.mimeType,
             fields,
+            annotations: annotationsForAi(anns),
             allowedCategories: selectedCategories.length ? selectedCategories : undefined,
             presetCategory: purchaseCategory || undefined,
 
@@ -402,6 +437,12 @@ function PurchaseWorkspace() {
           />
         </div>
 
+        {hasAnnotatedBatch && filesForAnnotator.length > 0 && !loading && (
+          <Button variant="outline" size="sm" onClick={() => setAnnotatorOpen(true)}>
+            View / edit annotations
+          </Button>
+        )}
+
         {previews.length > 0 && (
           <div className="flex gap-2 flex-wrap">
             {previews.map((p) => {
@@ -544,6 +585,54 @@ function PurchaseWorkspace() {
           </div>
         </Card>
       )}
+
+      {/* Annotate before processing? */}
+      <Dialog open={annotatePromptOpen} onOpenChange={setAnnotatePromptOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Annotate before processing?</DialogTitle>
+            <DialogDescription>
+              Draw boxes on the bill to mark item names, quantities, categories or brands, and use
+              Exclude to mask out struck-out or cancelled rows. Optional — skip to process straight
+              away.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAnnotatePromptOpen(false);
+                setHasAnnotatedBatch(false);
+                runProcessing(filesForAnnotator, {});
+              }}
+            >
+              Skip
+            </Button>
+            <Button
+              onClick={() => {
+                setAnnotatePromptOpen(false);
+                setAnnotatorOpen(true);
+              }}
+            >
+              Annotate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AnnotationEditor
+        open={annotatorOpen}
+        onOpenChange={setAnnotatorOpen}
+        files={filesForAnnotator}
+        initial={annotationsForBatch}
+        onSubmit={(map) => {
+          const wasProcessed = hasAnnotatedBatch || rows.length > 0;
+          setAnnotationsForBatch(map);
+          setHasAnnotatedBatch(true);
+          setAnnotatorOpen(false);
+          runProcessing(filesForAnnotator, map, wasProcessed);
+        }}
+      />
     </div>
   );
 }

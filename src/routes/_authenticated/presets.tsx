@@ -11,8 +11,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { inventoryQueryOptions } from "@/lib/inventory-query";
+import { AnnotationEditor, type Annotation } from "@/components/annotation-editor";
+import { maskExcludedRegions, annotationsForAi } from "@/lib/image-mask";
 import type { PurchaseFieldKey } from "@/lib/purchase.functions";
 
 export const Route = createFileRoute("/_authenticated/presets")({
@@ -90,6 +100,11 @@ function PresetsPage() {
   const [uploading, setUploading] = useState<"input" | "output" | null>(null);
   const [saving, setSaving] = useState(false);
   const [signed, setSigned] = useState<Record<string, string>>({});
+  const [annotatePromptOpen, setAnnotatePromptOpen] = useState(false);
+  const [annotatorOpen, setAnnotatorOpen] = useState(false);
+  const [annotKind, setAnnotKind] = useState<"input" | "output">("input");
+  const [filesForAnnotator, setFilesForAnnotator] = useState<File[]>([]);
+  const [annotations, setAnnotations] = useState<Record<number, Annotation[]>>({});
 
   const { data: presets = [], refetch, isLoading } = useQuery({
     queryKey: ["purchase-presets"],
@@ -128,18 +143,40 @@ function PresetsPage() {
     if (Object.keys(next).length) setSigned((s) => ({ ...s, ...next }));
   };
 
-  const onUpload = async (files: FileList | null, kind: "input" | "output") => {
+  // Ask to annotate images before they become training samples.
+  const onPickFiles = (files: FileList | null, kind: "input" | "output") => {
     if (!files?.length) return;
+    const arr = Array.from(files);
+    if (!arr.some((f) => f.type.startsWith("image/"))) {
+      onUpload(arr, kind, {});
+      return;
+    }
+    setAnnotKind(kind);
+    setFilesForAnnotator(arr);
+    setAnnotations({});
+    setAnnotatePromptOpen(true);
+  };
+
+  const onUpload = async (
+    filesIn: File[] | null,
+    kind: "input" | "output",
+    annotationsMap: Record<number, Annotation[]>,
+  ) => {
+    if (!filesIn?.length) return;
     setUploading(kind);
     try {
       const paths: string[] = [];
       const mimes: string[] = [];
-      for (const file of Array.from(files)) {
-        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-        const mime = file.type || (isPdf ? "application/pdf" : "image/jpeg");
+      const hints: string[] = [];
+      const fmtPct = (n: number) => `${Math.round(n * 100)}%`;
+      for (let i = 0; i < filesIn.length; i++) {
+        const file = filesIn[i];
+        const anns = annotationsMap[i] ?? [];
+        // Burn "Exclude" regions into the pixels so the sample never teaches them.
+        const masked = await maskExcludedRegions(file, anns);
         const path = `presets/${kind}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-        const up = await supabase.storage.from("quotation-images").upload(path, file, {
-          contentType: mime,
+        const up = await supabase.storage.from("quotation-images").upload(path, masked.blob, {
+          contentType: masked.mimeType,
           upsert: false,
         });
         if (up.error) {
@@ -147,7 +184,18 @@ function PresetsPage() {
           continue;
         }
         paths.push(up.data.path);
-        mimes.push(mime);
+        mimes.push(masked.mimeType);
+        for (const a of annotationsForAi(anns)) {
+          hints.push(
+            `- ${kind === "input" ? "Sample bill" : "Expected output"} "${file.name}": ${a.label} region at [x=${fmtPct(a.x)}, y=${fmtPct(a.y)}, w=${fmtPct(a.w)}, h=${fmtPct(a.h)}]${a.text ? ` — text: "${a.text}"` : ""}`,
+          );
+        }
+      }
+      if (hints.length) {
+        setDraft((d) => ({
+          ...d,
+          notes: `${d.notes ? `${d.notes}\n` : ""}Annotated regions:\n${hints.join("\n")}`,
+        }));
       }
       if (paths.length) {
         setDraft((d) =>
@@ -339,7 +387,7 @@ function PresetsPage() {
             multiple
             accept="image/*,application/pdf"
             className="hidden"
-            onChange={(e) => onUpload(e.target.files, "input")}
+            onChange={(e) => onPickFiles(e.target.files, "input")}
           />
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Layout rules / notes for the AI</label>
@@ -366,7 +414,7 @@ function PresetsPage() {
             multiple
             accept="image/*,application/pdf"
             className="hidden"
-            onChange={(e) => onUpload(e.target.files, "output")}
+            onChange={(e) => onPickFiles(e.target.files, "output")}
           />
 
           <div>
@@ -428,6 +476,51 @@ function PresetsPage() {
           </div>
         )}
       </Card>
+
+      {/* Annotate before adding as a training sample */}
+      <Dialog open={annotatePromptOpen} onOpenChange={setAnnotatePromptOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Annotate this sample?</DialogTitle>
+            <DialogDescription>
+              Draw boxes to point out the item, quantity, category or brand columns, and use Exclude
+              to mask out areas the AI should never learn from. The regions are saved into the
+              preset notes. Optional — skip to upload as-is.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAnnotatePromptOpen(false);
+                onUpload(filesForAnnotator, annotKind, {});
+              }}
+            >
+              Skip
+            </Button>
+            <Button
+              onClick={() => {
+                setAnnotatePromptOpen(false);
+                setAnnotatorOpen(true);
+              }}
+            >
+              Annotate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AnnotationEditor
+        open={annotatorOpen}
+        onOpenChange={setAnnotatorOpen}
+        files={filesForAnnotator}
+        initial={annotations}
+        onSubmit={(map) => {
+          setAnnotations(map);
+          setAnnotatorOpen(false);
+          onUpload(filesForAnnotator, annotKind, map);
+        }}
+      />
     </div>
   );
 }
