@@ -13,6 +13,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { inventoryQueryOptions } from "@/lib/inventory-query";
+import { AnnotationEditor, type Annotation } from "@/components/annotation-editor";
+import { maskExcludedRegions, annotationsForAi } from "@/lib/image-mask";
 import type { PurchaseFieldKey } from "@/lib/purchase.functions";
 
 export const Route = createFileRoute("/_authenticated/presets")({
@@ -90,6 +92,11 @@ function PresetsPage() {
   const [uploading, setUploading] = useState<"input" | "output" | null>(null);
   const [saving, setSaving] = useState(false);
   const [signed, setSigned] = useState<Record<string, string>>({});
+  const [annotatePromptOpen, setAnnotatePromptOpen] = useState(false);
+  const [annotatorOpen, setAnnotatorOpen] = useState(false);
+  const [annotKind, setAnnotKind] = useState<"input" | "output">("input");
+  const [filesForAnnotator, setFilesForAnnotator] = useState<File[]>([]);
+  const [annotations, setAnnotations] = useState<Record<number, Annotation[]>>({});
 
   const { data: presets = [], refetch, isLoading } = useQuery({
     queryKey: ["purchase-presets"],
@@ -372,7 +379,7 @@ function PresetsPage() {
             multiple
             accept="image/*,application/pdf"
             className="hidden"
-            onChange={(e) => onUpload(e.target.files, "input")}
+            onChange={(e) => onPickFiles(e.target.files, "input")}
           />
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Layout rules / notes for the AI</label>
@@ -399,7 +406,7 @@ function PresetsPage() {
             multiple
             accept="image/*,application/pdf"
             className="hidden"
-            onChange={(e) => onUpload(e.target.files, "output")}
+            onChange={(e) => onPickFiles(e.target.files, "output")}
           />
 
           <div>
