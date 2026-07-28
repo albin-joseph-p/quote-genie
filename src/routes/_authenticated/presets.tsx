@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Plus, Save, Trash2, Upload, X, Sparkles } from "lucide-react";
+import { Loader2, Save, Trash2, Upload, X, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetch-all";
 import type { PurchaseFieldKey } from "@/lib/purchase.functions";
 
 export const Route = createFileRoute("/_authenticated/presets")({
@@ -20,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/presets")({
       { title: "Format Presets — Orion Sales Corporation" },
       {
         name: "description",
-        content: "Train the AI on custom supplier bill formats by uploading samples and defining the expected output.",
+        content: "Train the AI on custom bill formats by uploading sample bills and images of the expected output.",
       },
     ],
   }),
@@ -43,52 +44,50 @@ const FIELDS: { key: PurchaseFieldKey; label: string }[] = [
 type Preset = {
   id: string;
   name: string;
-  supplier_hint: string;
+  category: string;
   notes: string;
   sample_paths: string[];
   sample_mimes: string[];
+  output_paths: string[];
+  output_mimes: string[];
   field_keys: string[];
-  output_example: OutputExample;
   is_active: boolean;
   created_at: string;
-};
-
-type ExampleLine = Partial<Record<PurchaseFieldKey, string>>;
-type OutputExample = {
-  supplierName?: string;
-  invoiceNumber?: string;
-  invoiceDate?: string;
-  items?: ExampleLine[];
 };
 
 type Draft = {
   id: string | null;
   name: string;
-  supplier_hint: string;
+  category: string;
   notes: string;
   sample_paths: string[];
   sample_mimes: string[];
+  output_paths: string[];
+  output_mimes: string[];
   field_keys: PurchaseFieldKey[];
-  output: OutputExample;
   is_active: boolean;
 };
 
 const emptyDraft = (): Draft => ({
   id: null,
   name: "",
-  supplier_hint: "",
+  category: "",
   notes: "",
   sample_paths: [],
   sample_mimes: [],
+  output_paths: [],
+  output_mimes: [],
   field_keys: ["itemName", "hsn", "qty", "unitPrice", "taxableValue", "cgst", "sgst", "total"],
-  output: { supplierName: "", invoiceNumber: "", invoiceDate: "", items: [{ itemName: "" }] },
   is_active: true,
 });
 
+type InventoryRow = { item_code: string; category: string | null };
+
 function PresetsPage() {
-  const fileRef = useRef<HTMLInputElement>(null);
+  const inputFileRef = useRef<HTMLInputElement>(null);
+  const outputFileRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState<"input" | "output" | null>(null);
   const [saving, setSaving] = useState(false);
   const [signed, setSigned] = useState<Record<string, string>>({});
 
@@ -104,6 +103,21 @@ function PresetsPage() {
     },
   });
 
+  const { data: inventory = [] } = useQuery({
+    queryKey: ["inventory-preset-categories"],
+    queryFn: () => fetchAllRows<InventoryRow>("inventory", "item_code,category"),
+    staleTime: 60_000,
+  });
+
+  const categoryNames = useMemo(() => {
+    const s = new Set<string>();
+    for (const i of inventory) {
+      const c = (i.category ?? "").trim();
+      if (c) s.add(c);
+    }
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [inventory]);
+
   const signFor = async (paths: string[]) => {
     const missing = paths.filter((p) => !signed[p]);
     if (!missing.length) return;
@@ -115,16 +129,16 @@ function PresetsPage() {
     if (Object.keys(next).length) setSigned((s) => ({ ...s, ...next }));
   };
 
-  const onUpload = async (files: FileList | null) => {
+  const onUpload = async (files: FileList | null, kind: "input" | "output") => {
     if (!files?.length) return;
-    setUploading(true);
+    setUploading(kind);
     try {
       const paths: string[] = [];
       const mimes: string[] = [];
       for (const file of Array.from(files)) {
         const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
         const mime = file.type || (isPdf ? "application/pdf" : "image/jpeg");
-        const path = `presets/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+        const path = `presets/${kind}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
         const up = await supabase.storage.from("quotation-images").upload(path, file, {
           contentType: mime,
           upsert: false,
@@ -137,26 +151,35 @@ function PresetsPage() {
         mimes.push(mime);
       }
       if (paths.length) {
-        setDraft((d) => ({
-          ...d,
-          sample_paths: [...d.sample_paths, ...paths],
-          sample_mimes: [...d.sample_mimes, ...mimes],
-        }));
+        setDraft((d) =>
+          kind === "input"
+            ? { ...d, sample_paths: [...d.sample_paths, ...paths], sample_mimes: [...d.sample_mimes, ...mimes] }
+            : { ...d, output_paths: [...d.output_paths, ...paths], output_mimes: [...d.output_mimes, ...mimes] },
+        );
         await signFor(paths);
-        toast.success(`${paths.length} sample(s) added`);
+        toast.success(`${paths.length} ${kind} sample(s) added`);
       }
     } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
+      setUploading(null);
+      const ref = kind === "input" ? inputFileRef : outputFileRef;
+      if (ref.current) ref.current.value = "";
     }
   };
 
-  const removeSample = (idx: number) =>
-    setDraft((d) => ({
-      ...d,
-      sample_paths: d.sample_paths.filter((_, i) => i !== idx),
-      sample_mimes: d.sample_mimes.filter((_, i) => i !== idx),
-    }));
+  const removeSample = (idx: number, kind: "input" | "output") =>
+    setDraft((d) =>
+      kind === "input"
+        ? {
+            ...d,
+            sample_paths: d.sample_paths.filter((_, i) => i !== idx),
+            sample_mimes: d.sample_mimes.filter((_, i) => i !== idx),
+          }
+        : {
+            ...d,
+            output_paths: d.output_paths.filter((_, i) => i !== idx),
+            output_mimes: d.output_mimes.filter((_, i) => i !== idx),
+          },
+    );
 
   const toggleField = (k: PurchaseFieldKey) =>
     setDraft((d) => ({
@@ -164,52 +187,41 @@ function PresetsPage() {
       field_keys: d.field_keys.includes(k) ? d.field_keys.filter((x) => x !== k) : [...d.field_keys, k],
     }));
 
-  const setLine = (idx: number, key: PurchaseFieldKey, value: string) =>
-    setDraft((d) => {
-      const items = [...(d.output.items ?? [])];
-      items[idx] = { ...items[idx], [key]: value };
-      return { ...d, output: { ...d.output, items } };
-    });
-
-  const addLine = () =>
-    setDraft((d) => ({ ...d, output: { ...d.output, items: [...(d.output.items ?? []), {}] } }));
-  const removeLine = (idx: number) =>
-    setDraft((d) => ({ ...d, output: { ...d.output, items: (d.output.items ?? []).filter((_, i) => i !== idx) } }));
-
   const edit = async (p: Preset) => {
     setDraft({
       id: p.id,
       name: p.name,
-      supplier_hint: p.supplier_hint,
+      category: p.category ?? "",
       notes: p.notes,
       sample_paths: p.sample_paths ?? [],
       sample_mimes: p.sample_mimes ?? [],
+      output_paths: p.output_paths ?? [],
+      output_mimes: p.output_mimes ?? [],
       field_keys: (p.field_keys ?? []) as PurchaseFieldKey[],
-      output: (p.output_example ?? {}) as OutputExample,
       is_active: p.is_active,
     });
-    await signFor(p.sample_paths ?? []);
+    await signFor([...(p.sample_paths ?? []), ...(p.output_paths ?? [])]);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const save = async () => {
     if (!draft.name.trim()) return toast.error("Give the preset a name.");
-    if (!draft.sample_paths.length) return toast.error("Upload at least one sample document.");
+    if (!draft.category.trim()) return toast.error("Select a category for this preset.");
+    if (!draft.sample_paths.length) return toast.error("Upload at least one sample bill (input).");
+    if (!draft.output_paths.length) return toast.error("Upload at least one expected-output image.");
     if (!draft.field_keys.length) return toast.error("Select at least one output field.");
     setSaving(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
       const payload = {
         name: draft.name.trim(),
-        supplier_hint: draft.supplier_hint.trim(),
+        category: draft.category.trim(),
         notes: draft.notes,
         sample_paths: draft.sample_paths,
         sample_mimes: draft.sample_mimes,
+        output_paths: draft.output_paths,
+        output_mimes: draft.output_mimes,
         field_keys: draft.field_keys,
-        output_example: {
-          ...draft.output,
-          items: (draft.output.items ?? []).filter((i) => Object.values(i).some((v) => (v ?? "").trim() !== "")),
-        },
         is_active: draft.is_active,
         created_by: userData.user?.id ?? null,
       };
@@ -235,14 +247,50 @@ function PresetsPage() {
     refetch();
   };
 
-  const activeFields = useMemo(() => FIELDS.filter((f) => draft.field_keys.includes(f.key)), [draft.field_keys]);
+  const renderThumbs = (paths: string[], mimes: string[], kind: "input" | "output") => (
+    <div className="flex flex-wrap gap-3">
+      {paths.map((p, i) => (
+        <div key={p} className="relative h-28 w-28 rounded-md border overflow-hidden bg-muted">
+          {mimes[i] === "application/pdf" ? (
+            <a
+              href={signed[p]}
+              target="_blank"
+              rel="noreferrer"
+              className="flex h-full w-full items-center justify-center text-xs font-medium"
+            >
+              PDF
+            </a>
+          ) : (
+            <a href={signed[p]} target="_blank" rel="noreferrer">
+              <img src={signed[p]} alt={`${kind} sample`} className="h-full w-full object-cover" />
+            </a>
+          )}
+          <button
+            onClick={() => removeSample(i, kind)}
+            className="absolute right-1 top-1 rounded bg-background/90 p-0.5"
+            aria-label="Remove sample"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      ))}
+      <button
+        onClick={() => (kind === "input" ? inputFileRef : outputFileRef).current?.click()}
+        className="h-28 w-28 rounded-md border border-dashed flex flex-col items-center justify-center gap-1 text-xs text-muted-foreground hover:bg-accent"
+      >
+        {uploading === kind ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+        Add {kind === "input" ? "bill" : "output"}
+      </button>
+    </div>
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Format Presets</h1>
         <p className="text-sm text-muted-foreground">
-          Teach the AI a supplier's document layout: upload sample bills and define the exact output it should produce.
+          Teach the AI a bill layout per category: upload sample bills and images of the expected result. The AI reads
+          the text off the output images and learns to reproduce it.
         </p>
       </div>
 
@@ -253,16 +301,24 @@ function PresetsPage() {
             <Input
               value={draft.name}
               onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-              placeholder="e.g. Sharma Electricals — GST bill"
+              placeholder="e.g. Switches — GST bill layout"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Supplier (optional)</label>
-            <Input
-              value={draft.supplier_hint}
-              onChange={(e) => setDraft((d) => ({ ...d, supplier_hint: e.target.value }))}
-              placeholder="Supplier name on the bill"
-            />
+            <label className="text-xs font-medium text-muted-foreground">Category</label>
+            <select
+              value={draft.category}
+              onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+              aria-label="Category"
+            >
+              <option value="">Select category…</option>
+              {categoryNames.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex items-end gap-2 pb-1">
             <Switch
@@ -276,48 +332,15 @@ function PresetsPage() {
 
         {/* INPUT */}
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold">Input — sample documents</h2>
-          <div className="flex flex-wrap gap-3">
-            {draft.sample_paths.map((p, i) => (
-              <div key={p} className="relative h-28 w-28 rounded-md border overflow-hidden bg-muted">
-                {draft.sample_mimes[i] === "application/pdf" ? (
-                  <a
-                    href={signed[p]}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex h-full w-full items-center justify-center text-xs font-medium"
-                  >
-                    PDF
-                  </a>
-                ) : (
-                  <a href={signed[p]} target="_blank" rel="noreferrer">
-                    <img src={signed[p]} alt="Sample document" className="h-full w-full object-cover" />
-                  </a>
-                )}
-                <button
-                  onClick={() => removeSample(i)}
-                  className="absolute right-1 top-1 rounded bg-background/90 p-0.5"
-                  aria-label="Remove sample"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="h-28 w-28 rounded-md border border-dashed flex flex-col items-center justify-center gap-1 text-xs text-muted-foreground hover:bg-accent"
-            >
-              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              Add sample
-            </button>
-          </div>
+          <h2 className="text-sm font-semibold">Input — sample bills</h2>
+          {renderThumbs(draft.sample_paths, draft.sample_mimes, "input")}
           <input
-            ref={fileRef}
+            ref={inputFileRef}
             type="file"
             multiple
             accept="image/*,application/pdf"
             className="hidden"
-            onChange={(e) => onUpload(e.target.files)}
+            onChange={(e) => onUpload(e.target.files, "input")}
           />
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Layout rules / notes for the AI</label>
@@ -332,71 +355,32 @@ function PresetsPage() {
 
         {/* OUTPUT */}
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold">Output — expected extraction</h2>
-          <div className="flex flex-wrap gap-3">
-            {FIELDS.map((f) => (
-              <label key={f.key} className="flex items-center gap-2 text-sm">
-                <Checkbox checked={draft.field_keys.includes(f.key)} onCheckedChange={() => toggleField(f.key)} />
-                {f.label}
-              </label>
-            ))}
-          </div>
+          <h2 className="text-sm font-semibold">Output — expected result (uploaded as image)</h2>
+          <p className="text-xs text-muted-foreground">
+            Upload a screenshot / photo of the correctly extracted table for the bill above. The AI reads the text from
+            it and trains on that exact output.
+          </p>
+          {renderThumbs(draft.output_paths, draft.output_mimes, "output")}
+          <input
+            ref={outputFileRef}
+            type="file"
+            multiple
+            accept="image/*,application/pdf"
+            className="hidden"
+            onChange={(e) => onUpload(e.target.files, "output")}
+          />
 
-          <div className="grid gap-3 md:grid-cols-3">
-            <Input
-              value={draft.output.supplierName ?? ""}
-              onChange={(e) => setDraft((d) => ({ ...d, output: { ...d.output, supplierName: e.target.value } }))}
-              placeholder="Expected supplier name"
-            />
-            <Input
-              value={draft.output.invoiceNumber ?? ""}
-              onChange={(e) => setDraft((d) => ({ ...d, output: { ...d.output, invoiceNumber: e.target.value } }))}
-              placeholder="Expected invoice number"
-            />
-            <Input
-              value={draft.output.invoiceDate ?? ""}
-              onChange={(e) => setDraft((d) => ({ ...d, output: { ...d.output, invoiceDate: e.target.value } }))}
-              placeholder="Expected date (dd-MM-yyyy)"
-            />
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Fields to capture</label>
+            <div className="flex flex-wrap gap-3 pt-2">
+              {FIELDS.map((f) => (
+                <label key={f.key} className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={draft.field_keys.includes(f.key)} onCheckedChange={() => toggleField(f.key)} />
+                  {f.label}
+                </label>
+              ))}
+            </div>
           </div>
-
-          <div className="overflow-x-auto rounded-md border">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  {activeFields.map((f) => (
-                    <th key={f.key} className="text-left p-2 font-medium whitespace-nowrap">
-                      {f.label}
-                    </th>
-                  ))}
-                  <th className="w-10" />
-                </tr>
-              </thead>
-              <tbody>
-                {(draft.output.items ?? []).map((line, idx) => (
-                  <tr key={idx} className="border-t">
-                    {activeFields.map((f) => (
-                      <td key={f.key} className="p-1">
-                        <Input
-                          className="h-8"
-                          value={line[f.key] ?? ""}
-                          onChange={(e) => setLine(idx, f.key, e.target.value)}
-                        />
-                      </td>
-                    ))}
-                    <td className="p-1">
-                      <Button variant="ghost" size="icon" onClick={() => removeLine(idx)} aria-label="Remove line">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Button variant="outline" size="sm" onClick={addLine}>
-            <Plus className="h-4 w-4 mr-1" /> Add example line
-          </Button>
         </section>
 
         <div className="flex items-center gap-2">
@@ -427,8 +411,8 @@ function PresetsPage() {
                 <div className="min-w-0">
                   <div className="font-medium truncate">{p.name}</div>
                   <div className="text-xs text-muted-foreground truncate">
-                    {p.supplier_hint || "any supplier"} · {(p.sample_paths ?? []).length} sample(s) ·{" "}
-                    {(p.field_keys ?? []).length} field(s)
+                    {p.category || "no category"} · {(p.sample_paths ?? []).length} bill(s) ·{" "}
+                    {(p.output_paths ?? []).length} output image(s) · {(p.field_keys ?? []).length} field(s)
                   </div>
                 </div>
                 {!p.is_active && <Badge variant="secondary">Inactive</Badge>}
