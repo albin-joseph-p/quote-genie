@@ -128,18 +128,40 @@ function PresetsPage() {
     if (Object.keys(next).length) setSigned((s) => ({ ...s, ...next }));
   };
 
-  const onUpload = async (files: FileList | null, kind: "input" | "output") => {
+  // Ask to annotate images before they become training samples.
+  const onPickFiles = (files: FileList | null, kind: "input" | "output") => {
     if (!files?.length) return;
+    const arr = Array.from(files);
+    if (!arr.some((f) => f.type.startsWith("image/"))) {
+      onUpload(arr, kind, {});
+      return;
+    }
+    setAnnotKind(kind);
+    setFilesForAnnotator(arr);
+    setAnnotations({});
+    setAnnotatePromptOpen(true);
+  };
+
+  const onUpload = async (
+    filesIn: File[] | null,
+    kind: "input" | "output",
+    annotationsMap: Record<number, Annotation[]>,
+  ) => {
+    if (!filesIn?.length) return;
     setUploading(kind);
     try {
       const paths: string[] = [];
       const mimes: string[] = [];
-      for (const file of Array.from(files)) {
-        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-        const mime = file.type || (isPdf ? "application/pdf" : "image/jpeg");
+      const hints: string[] = [];
+      const fmtPct = (n: number) => `${Math.round(n * 100)}%`;
+      for (let i = 0; i < filesIn.length; i++) {
+        const file = filesIn[i];
+        const anns = annotationsMap[i] ?? [];
+        // Burn "Exclude" regions into the pixels so the sample never teaches them.
+        const masked = await maskExcludedRegions(file, anns);
         const path = `presets/${kind}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-        const up = await supabase.storage.from("quotation-images").upload(path, file, {
-          contentType: mime,
+        const up = await supabase.storage.from("quotation-images").upload(path, masked.blob, {
+          contentType: masked.mimeType,
           upsert: false,
         });
         if (up.error) {
@@ -147,7 +169,18 @@ function PresetsPage() {
           continue;
         }
         paths.push(up.data.path);
-        mimes.push(mime);
+        mimes.push(masked.mimeType);
+        for (const a of annotationsForAi(anns)) {
+          hints.push(
+            `- ${kind === "input" ? "Sample bill" : "Expected output"} "${file.name}": ${a.label} region at [x=${fmtPct(a.x)}, y=${fmtPct(a.y)}, w=${fmtPct(a.w)}, h=${fmtPct(a.h)}]${a.text ? ` — text: "${a.text}"` : ""}`,
+          );
+        }
+      }
+      if (hints.length) {
+        setDraft((d) => ({
+          ...d,
+          notes: `${d.notes ? `${d.notes}\n` : ""}Annotated regions:\n${hints.join("\n")}`,
+        }));
       }
       if (paths.length) {
         setDraft((d) =>
