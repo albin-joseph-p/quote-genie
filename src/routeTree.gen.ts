@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedSynonymsRouteImport } from './routes/_authenticated/synonyms'
 import { Route as AuthenticatedSuppliersRouteImport } from './routes/_authenticated/suppliers'
+import { Route as AuthenticatedQuotePresetsRouteImport } from './routes/_authenticated/quote-presets'
 import { Route as AuthenticatedPurchasesRouteImport } from './routes/_authenticated/purchases'
 import { Route as AuthenticatedPresetsRouteImport } from './routes/_authenticated/presets'
 import { Route as AuthenticatedMasterRouteImport } from './routes/_authenticated/master'
@@ -54,6 +55,12 @@ const AuthenticatedSuppliersRoute = AuthenticatedSuppliersRouteImport.update({
   path: '/suppliers',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedQuotePresetsRoute =
+  AuthenticatedQuotePresetsRouteImport.update({
+    id: '/quote-presets',
+    path: '/quote-presets',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPurchasesRoute = AuthenticatedPurchasesRouteImport.update({
   id: '/purchases',
   path: '/purchases',
@@ -114,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/master': typeof AuthenticatedMasterRoute
   '/presets': typeof AuthenticatedPresetsRoute
   '/purchases': typeof AuthenticatedPurchasesRoute
+  '/quote-presets': typeof AuthenticatedQuotePresetsRoute
   '/suppliers': typeof AuthenticatedSuppliersRoute
   '/synonyms': typeof AuthenticatedSynonymsRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -129,6 +137,7 @@ export interface FileRoutesByTo {
   '/master': typeof AuthenticatedMasterRoute
   '/presets': typeof AuthenticatedPresetsRoute
   '/purchases': typeof AuthenticatedPurchasesRoute
+  '/quote-presets': typeof AuthenticatedQuotePresetsRoute
   '/suppliers': typeof AuthenticatedSuppliersRoute
   '/synonyms': typeof AuthenticatedSynonymsRoute
   '/': typeof AuthenticatedIndexRoute
@@ -147,6 +156,7 @@ export interface FileRoutesById {
   '/_authenticated/master': typeof AuthenticatedMasterRoute
   '/_authenticated/presets': typeof AuthenticatedPresetsRoute
   '/_authenticated/purchases': typeof AuthenticatedPurchasesRoute
+  '/_authenticated/quote-presets': typeof AuthenticatedQuotePresetsRoute
   '/_authenticated/suppliers': typeof AuthenticatedSuppliersRoute
   '/_authenticated/synonyms': typeof AuthenticatedSynonymsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/master'
     | '/presets'
     | '/purchases'
+    | '/quote-presets'
     | '/suppliers'
     | '/synonyms'
     | '/.lovable/oauth/consent'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/master'
     | '/presets'
     | '/purchases'
+    | '/quote-presets'
     | '/suppliers'
     | '/synonyms'
     | '/'
@@ -198,6 +210,7 @@ export interface FileRouteTypes {
     | '/_authenticated/master'
     | '/_authenticated/presets'
     | '/_authenticated/purchases'
+    | '/_authenticated/quote-presets'
     | '/_authenticated/suppliers'
     | '/_authenticated/synonyms'
     | '/_authenticated/'
@@ -257,6 +270,13 @@ declare module '@tanstack/react-router' {
       path: '/suppliers'
       fullPath: '/suppliers'
       preLoaderRoute: typeof AuthenticatedSuppliersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/quote-presets': {
+      id: '/_authenticated/quote-presets'
+      path: '/quote-presets'
+      fullPath: '/quote-presets'
+      preLoaderRoute: typeof AuthenticatedQuotePresetsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/purchases': {
@@ -331,6 +351,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMasterRoute: typeof AuthenticatedMasterRoute
   AuthenticatedPresetsRoute: typeof AuthenticatedPresetsRoute
   AuthenticatedPurchasesRoute: typeof AuthenticatedPurchasesRoute
+  AuthenticatedQuotePresetsRoute: typeof AuthenticatedQuotePresetsRoute
   AuthenticatedSuppliersRoute: typeof AuthenticatedSuppliersRoute
   AuthenticatedSynonymsRoute: typeof AuthenticatedSynonymsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -342,6 +363,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMasterRoute: AuthenticatedMasterRoute,
   AuthenticatedPresetsRoute: AuthenticatedPresetsRoute,
   AuthenticatedPurchasesRoute: AuthenticatedPurchasesRoute,
+  AuthenticatedQuotePresetsRoute: AuthenticatedQuotePresetsRoute,
   AuthenticatedSuppliersRoute: AuthenticatedSuppliersRoute,
   AuthenticatedSynonymsRoute: AuthenticatedSynonymsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,

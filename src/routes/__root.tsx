@@ -186,8 +186,12 @@ function ModeAwareNav() {
       )}
       <NavTab to="/history" label="History" />
       {mode === "quotation" ? (
-        <NavTab to="/categories" label="Categories" />
+        <>
+          <NavTab to="/categories" label="Categories" />
+          <NavTab to="/quote-presets" label="Presets" />
+        </>
       ) : (
+
         <>
           <NavTab to="/suppliers" label="Suppliers" />
           <NavTab to="/presets" label="Presets" />
