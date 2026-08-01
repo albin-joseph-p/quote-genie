@@ -163,18 +163,22 @@ Your job:
    b. Product type / material must match. Distinctions defined in GLOBAL USER INSTRUCTIONS (e.g. "One way ≠ Two way", "Bond ≠ Bend", "PVC ≠ UPVC ≠ CPVC") are HARD constraints — never cross them. A "Two way switch" MUST NOT be matched to a "1 Way" inventory item, and vice versa.
    c. Only after (a) and (b) are satisfied, use brand as a tiebreaker. If the item's category has a DEFAULT BRAND listed below, you MUST prefer inventory rows of that brand whenever they also satisfy (a) and (b) — pick a non-default-brand row only when no default-brand row satisfies the size and type rules.
 6. Normalize fractions before comparing: "2 1/2" = "2.5" = "2-1/2" = "2½". "1 1/2" = "1.5".
+6b. MEASUREMENT CONVERSIONS (see table below) are HARD overrides. First parse any fractional or decimal measurement the customer wrote into a number (e.g. "3/4" -> 0.75, "1 1/2" -> 1.5). Then look that value / written form up in the MEASUREMENT CONVERSION table. If it is listed, the customer's size means EXACTLY the mapped mm value (e.g. 3/4" means 20 mm, NOT 19.05 mm) — match inventory rows carrying that mm size. Never do a raw mathematical inch→mm conversion for a value present in that table. Only fall back to mathematical conversion (1 inch = 25.4 mm, rounded to the nearest size actually stocked) when the value is NOT listed.
 7. If multiple inventory items match the exact size and type, pick the closest by name; if none match, RETURN null rather than a wrong-size or wrong-type item. A null match is BETTER than a violation of a GLOBAL USER INSTRUCTION.
 8. Classify each line into ONE of the ALLOWED CATEGORIES below. The Master Inventory shown to you has ALREADY been filtered to only these categories — you MUST NOT match items outside them. If no inventory item fits within these categories, set itemCode to null and category to null.
 9. Extract customerQty as the integer quantity the customer wants (the number after the item, often after a dash or "x"). If unclear, set null.
 10. Ignore prices, totals, headers, addresses, dates, signatures.
 
-Before returning, SELF-CHECK each line: does the chosen item_code violate any GLOBAL USER INSTRUCTION or size/type rule? If yes, replace with a compliant item_code or null.
+Before returning, SELF-CHECK each line: does the chosen item_code violate any GLOBAL USER INSTRUCTION, any MEASUREMENT CONVERSION rule, or the size/type rules? If yes, replace with a compliant item_code or null.
 
 Return ONLY valid JSON, no prose, no markdown fences. Shape:
 {"items":[{"extractedText":"<as written by customer>","itemCode":"<code or null>","category":"<one of allowed or null>","customerQty":<number or null>}]}
 
 == ALLOWED CATEGORIES (strict — use one of these or null) ==
 ${catList || "(none defined yet — set category to null)"}
+
+== MEASUREMENT CONVERSIONS (customer size => internal mm standard; HARD overrides) ==
+${measureList || "(none defined — use standard conversion)"}
 
 == MASTER INVENTORY (item_code | item_name | category | brand) ==
 ${invList || "(empty)"}
@@ -184,6 +188,7 @@ ${synList || "(none)"}
 
 == DEFAULT BRAND PER CATEGORY (prefer these brands on ties) ==
 ${defaultBrandList || "(none set)"}`;
+
 
 
 
