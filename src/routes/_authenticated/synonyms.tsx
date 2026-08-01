@@ -9,9 +9,11 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { inventoryQueryOptions } from "@/lib/inventory-query";
+import { MeasurementConversions } from "@/components/measurement-conversions";
 
 export const Route = createFileRoute("/_authenticated/synonyms")({
   head: () => ({
@@ -257,7 +259,19 @@ function SynonymsPage() {
         </p>
       </div>
 
+      <Tabs defaultValue="synonyms" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="synonyms">Synonyms</TabsTrigger>
+          <TabsTrigger value="measurements">Measurements</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="measurements" className="space-y-6">
+          <MeasurementConversions />
+        </TabsContent>
+
+        <TabsContent value="synonyms" className="space-y-6">
       <Card className="p-6 space-y-4">
+
         <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
           <Input
             placeholder='Customer term, e.g. "Finolex 1.5"'
@@ -312,6 +326,9 @@ function SynonymsPage() {
       </Card>
 
       <GlobalAiInstructions />
+        </TabsContent>
+      </Tabs>
     </div>
+
   );
 }

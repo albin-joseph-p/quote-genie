@@ -127,6 +127,30 @@ export type Database = {
         }
         Relationships: []
       }
+      measurement_conversions: {
+        Row: {
+          created_at: string
+          id: string
+          input_unit: string
+          mm_value: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          input_unit: string
+          mm_value: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          input_unit?: string
+          mm_value?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       purchase_presets: {
         Row: {
           category: string
