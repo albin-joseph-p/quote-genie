@@ -244,6 +244,51 @@ export type Database = {
         }
         Relationships: []
       }
+      quotation_presets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          excel_layout: string
+          excel_name: string
+          excel_path: string
+          id: string
+          is_active: boolean
+          name: string
+          notes: string
+          sample_mime: string
+          sample_path: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          excel_layout?: string
+          excel_name?: string
+          excel_path?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string
+          sample_mime?: string
+          sample_path?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          excel_layout?: string
+          excel_name?: string
+          excel_path?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string
+          sample_mime?: string
+          sample_path?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       quotations: {
         Row: {
           created_at: string
