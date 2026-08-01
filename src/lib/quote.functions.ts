@@ -84,11 +84,30 @@ export const processQuotation = createServerFn({ method: "POST" })
       return rows;
     };
 
-    const [inventory, { data: synonyms }, { data: instructionsRow }] = await Promise.all([
+    const [inventory, { data: synonyms }, { data: instructionsRow }, { data: measurements }] = await Promise.all([
       fetchAllInventory(),
       supabase.from("synonyms").select("customer_term,item_code"),
       supabase.from("ai_instructions").select("instructions").limit(1).maybeSingle(),
+      supabase.from("measurement_conversions").select("input_unit,mm_value").order("input_unit"),
     ]);
+
+    // Fraction/decimal parser so the prompt can show the numeric value of each rule.
+    const parseMeasure = (raw: string): number | null => {
+      const s = raw.trim().replace(/["”″]/g, "").replace(/\b(in|inch|inches|mm)\b/gi, "").trim();
+      const mixed = s.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+      if (mixed) return Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]);
+      const frac = s.match(/^(\d+)\s*\/\s*(\d+)$/);
+      if (frac) return Number(frac[1]) / Number(frac[2]);
+      if (/^\d*\.?\d+$/.test(s)) return Number(s);
+      return null;
+    };
+    const measureList = (measurements ?? [])
+      .map((m) => {
+        const parsed = parseMeasure(String(m.input_unit));
+        return `${m.input_unit}${parsed !== null ? ` (= ${parsed})` : ""} => ${m.mm_value} mm`;
+      })
+      .join("\n");
+
 
     // Restrict inventory + categories to the user's selected categories. This is
     // mandatory input, so the AI can only match within the chosen scope.
