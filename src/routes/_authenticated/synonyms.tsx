@@ -326,6 +326,9 @@ function SynonymsPage() {
       </Card>
 
       <GlobalAiInstructions />
+        </TabsContent>
+      </Tabs>
     </div>
+
   );
 }
