@@ -621,20 +621,33 @@ function Workspace() {
 
 
   const handleExportXlsx = async () => {
-    const XLSX = await import("xlsx");
-    const aoa = [
+    const matched = rows
+      .map((r) => (r.itemCode ? invByCode.get(r.itemCode) : undefined))
+      .map((inv, i) => ({ inv, qty: rows[i].qty }))
+      .filter((x) => !!x.inv);
+    if (!matched.length) {
+      toast.error("No matched items to export.");
+      return;
+    }
+    const esc = (v: string | number) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [
       ["Item Name", "Product ID", "Qty"],
-      ...rows.map((r) => {
-        const inv = r.itemCode ? invByCode.get(r.itemCode) : undefined;
-        return [inv?.item_name ?? r.extractedText, inv?.item_code ?? "", r.qty];
-      }),
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"] = [{ wch: 48 }, { wch: 20 }, { wch: 8 }];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Quotation");
-    XLSX.writeFile(wb, `quotation-${Date.now()}.xlsx`);
+      ...matched.map((x) => [x.inv!.item_name, x.inv!.item_code, x.qty]),
+    ]
+      .map((row) => row.map(esc).join(","))
+      .join("\r\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `quotation-${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
+
 
   const handleCopy = async () => {
     const lines = [
