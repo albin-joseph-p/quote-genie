@@ -15,12 +15,15 @@ import {
   ChevronsUpDown,
   Filter,
   Save,
+  Type,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -87,6 +90,10 @@ function Workspace() {
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   // Files staged while the user picks categories on their first upload.
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
+  // Input mode: drop images or type the quotation as text.
+  const [inputMode, setInputMode] = useState<"image" | "text">("image");
+  const [quoteText, setQuoteText] = useState("");
+  const [pendingText, setPendingText] = useState<string | null>(null);
   // Manual annotation flow state
   const [annotatePromptOpen, setAnnotatePromptOpen] = useState(false);
   const [annotatorOpen, setAnnotatorOpen] = useState(false);
@@ -301,6 +308,48 @@ function Workspace() {
     setAnnotatePromptOpen(true);
   };
 
+  const runTextProcessing = async (rawText: string, catsOverride?: string[]) => {
+    const text = rawText.trim();
+    if (!text) {
+      toast.error("Type the quotation text first.");
+      return;
+    }
+    const cats = catsOverride ?? selectedCategories;
+    if (cats.length === 0) {
+      setPendingText(text);
+      setCategoryDialogOpen(true);
+      return;
+    }
+    const batchStamp = Date.now();
+    setLoading(true);
+    setProgress({ done: 0, total: 1 });
+    try {
+      const res = await process({
+        data: { text, allowedCategories: cats, defaultBrandByCategory },
+      });
+      if (res.error) {
+        toast.error(res.error.message);
+        return;
+      }
+      const newRows: Row[] = res.items.map((it, rIdx) => ({
+        id: `${batchStamp}-text-${rIdx}`,
+        extractedText: it.extractedText,
+        itemCode: it.itemCode,
+        category: it.category ?? null,
+        qty: it.customerQty ?? 1,
+        aiItemCode: it.itemCode,
+      }));
+      setRows((rs) => [...rs, ...newRows]);
+      if (newRows.length === 0) toast.error("No line items could be read from the text.");
+      else toast.success(`Extracted ${newRows.length} item${newRows.length === 1 ? "" : "s"} from the text.`);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Processing failed.");
+    } finally {
+      setLoading(false);
+      setProgress(null);
+    }
+  };
+
   const runProcessing = async (
     batch: File[],
     cats: string[],
@@ -434,9 +483,13 @@ function Workspace() {
     }
     setCategoryDialogOpen(false);
     const files = pendingFiles;
+    const text = pendingText;
     setPendingFiles(null);
+    setPendingText(null);
     if (files && files.length > 0) {
       onFiles(files, selectedCategories);
+    } else if (text) {
+      runTextProcessing(text, selectedCategories);
     }
   };
 
@@ -737,12 +790,62 @@ function Workspace() {
 
           {/* Upload */}
           <section>
-            <label
-              className="block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3"
-              style={headingFont}
-            >
-              Quotation Images
-            </label>
+            <div className="flex items-center justify-between mb-3">
+              <label
+                className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
+                style={headingFont}
+              >
+                {inputMode === "image" ? "Quotation Images" : "Quotation Text"}
+              </label>
+              <div className="inline-flex rounded-lg border bg-muted/40 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setInputMode("image")}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition ${
+                    inputMode === "image" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  <Upload className="h-3 w-3 mr-1 inline" />
+                  Upload
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInputMode("text")}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition ${
+                    inputMode === "text" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  <Type className="h-3 w-3 mr-1 inline" />
+                  Type text
+                </button>
+              </div>
+            </div>
+            {inputMode === "text" ? (
+              <div className="space-y-2">
+                <Textarea
+                  rows={10}
+                  value={quoteText}
+                  onChange={(e) => setQuoteText(e.target.value)}
+                  placeholder={"Type or paste the customer's list, one item per line:\n2 1/2 CPVC elbow - 10\n20A switch - 5"}
+                  className="text-sm font-mono"
+                />
+                <div className="flex items-center gap-2">
+                  <Button onClick={() => runTextProcessing(quoteText)} disabled={loading || !quoteText.trim()}>
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-1.5" />
+                    )}
+                    Extract items
+                  </Button>
+                  {quoteText && (
+                    <Button variant="ghost" size="sm" onClick={() => setQuoteText("")}>
+                      Clear text
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ) : (
             <div
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
@@ -859,6 +962,7 @@ function Workspace() {
                 </div>
               )}
             </div>
+            )}
           </section>
 
           {/* Brand per Category */}
@@ -1113,6 +1217,7 @@ function Workspace() {
               onClick={() => {
                 setCategoryDialogOpen(false);
                 setPendingFiles(null);
+                setPendingText(null);
               }}
             >
               Cancel
@@ -1123,7 +1228,9 @@ function Workspace() {
             >
               {pendingFiles && pendingFiles.length > 0
                 ? `Process ${pendingFiles.length} image${pendingFiles.length === 1 ? "" : "s"}`
-                : "Save"}
+                : pendingText
+                  ? "Process text"
+                  : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

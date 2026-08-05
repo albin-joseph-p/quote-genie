@@ -13,8 +13,8 @@ export async function callGeminiAiStudio(params: {
   apiKey: string;
   systemPrompt: string;
   userText: string;
-  imageBase64: string;
-  mimeType: string;
+  imageBase64?: string;
+  mimeType?: string;
   model?: string;
   /** Few-shot training samples (preset documents + their correct output). */
   examples?: GeminiExample[];
@@ -65,7 +65,9 @@ export async function callGeminiAiStudio(params: {
         role: "user",
         parts: [
           { text: params.userText },
-          { inline_data: { mime_type: params.mimeType, data: params.imageBase64 } },
+          ...(params.imageBase64 && params.mimeType
+            ? [{ inline_data: { mime_type: params.mimeType, data: params.imageBase64 } }]
+            : []),
         ],
       },
     ],

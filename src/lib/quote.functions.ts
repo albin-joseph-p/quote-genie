@@ -14,8 +14,10 @@ const AnnotationSchema = z.object({
 });
 
 const Input = z.object({
-  imageBase64: z.string().min(1),
-  mimeType: z.string().min(1),
+  imageBase64: z.string().min(1).optional(),
+  mimeType: z.string().min(1).optional(),
+  /** Typed-in quotation text, used instead of an image. */
+  text: z.string().min(1).optional(),
   allowedCategories: z.array(z.string()).min(1),
   annotations: z.array(AnnotationSchema).optional(),
   defaultBrandByCategory: z.record(z.string(), z.string()).optional(),
@@ -205,9 +207,10 @@ ${defaultBrandList || "(none set)"}`;
             .join("\n")}`
         : "";
 
-    const userText =
-      "Extract the line items from this quotation image and map them per the rules." +
-      annotationBlock;
+    const userText = data.text
+      ? `The customer's quotation was typed in as text (no image). Extract the line items from the text below and map them per the rules.\n\n=== CUSTOMER TEXT ===\n${data.text}` +
+        annotationBlock
+      : "Extract the line items from this quotation image and map them per the rules." + annotationBlock;
     let rawText: string;
     try {
       rawText = await callGeminiAiStudio({
