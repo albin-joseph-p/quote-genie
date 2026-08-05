@@ -1047,6 +1047,7 @@ function Workspace() {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                     <tr>
+                      <th className="text-left p-3 font-medium w-12">#</th>
                       <th className="text-left p-3 font-medium">Extracted Text</th>
                       <th className="text-left p-3 font-medium">Database Match</th>
                       <th className="text-left p-3 font-medium">Category</th>
@@ -1056,7 +1057,7 @@ function Workspace() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((r) => {
+                    {rows.map((r, idx) => {
                       const inv = r.itemCode ? invByCode.get(r.itemCode) : undefined;
                       const edited = r.itemCode !== r.aiItemCode;
                       return (
@@ -1064,6 +1065,7 @@ function Workspace() {
                           key={r.id}
                           className={cn("border-t align-top", edited && "bg-[var(--color-edited)]")}
                         >
+                          <td className="p-3 text-muted-foreground tabular-nums">{idx + 1}</td>
                           <td className="p-3 text-muted-foreground">{r.extractedText}</td>
                           <td className="p-3">
                             <InventoryCombobox
