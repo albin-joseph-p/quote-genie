@@ -430,7 +430,7 @@ function MasterPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Master Inventory</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Upload a CSV or Excel file. Uploading will <strong>replace</strong> the entire inventory.
+          Upload a CSV or Excel file. You can choose to <strong>replace</strong> or <strong>add to</strong> your current inventory.
         </p>
       </div>
 
