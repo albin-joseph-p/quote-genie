@@ -229,8 +229,12 @@ function MasterPage() {
       for (const r of normalized) map.set(r.item_code, r);
       const deduped = Array.from(map.values());
 
-      const del = await supabase.from("inventory").delete().neq("item_code", "__none__");
-      if (del.error) throw del.error;
+      if (!window.confirm("Do you want to clear existing items before importing? Click 'Cancel' to add these items to the current inventory (duplicates will be updated).")) {
+        // Just proceed to upsert, no delete
+      } else {
+        const del = await supabase.from("inventory").delete().neq("item_code", "__none__");
+        if (del.error) throw del.error;
+      }
 
       const BATCH = 500;
       for (let i = 0; i < deduped.length; i += BATCH) {
