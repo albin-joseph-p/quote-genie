@@ -229,8 +229,12 @@ function MasterPage() {
       for (const r of normalized) map.set(r.item_code, r);
       const deduped = Array.from(map.values());
 
-      const del = await supabase.from("inventory").delete().neq("item_code", "__none__");
-      if (del.error) throw del.error;
+      if (!window.confirm("Do you want to clear existing items before importing? Click 'Cancel' to add these items to the current inventory (duplicates will be updated).")) {
+        // Just proceed to upsert, no delete
+      } else {
+        const del = await supabase.from("inventory").delete().neq("item_code", "__none__");
+        if (del.error) throw del.error;
+      }
 
       const BATCH = 500;
       for (let i = 0; i < deduped.length; i += BATCH) {
@@ -426,7 +430,7 @@ function MasterPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Master Inventory</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Upload a CSV or Excel file. Uploading will <strong>replace</strong> the entire inventory.
+          Upload a CSV or Excel file. You can choose to <strong>replace</strong> or <strong>add to</strong> your current inventory.
         </p>
       </div>
 
