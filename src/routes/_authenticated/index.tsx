@@ -1038,7 +1038,7 @@ function Workspace() {
                     <Copy className="h-4 w-4 mr-1.5" /> Copy
                   </Button>
                   <Button size="sm" onClick={handleExportXlsx}>
-                    <FileDown className="h-4 w-4 mr-1.5" /> Export
+                    <FileDown className="h-4 w-4 mr-1.5" /> Export CSV
                   </Button>
                 </div>
               </div>
