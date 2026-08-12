@@ -250,12 +250,12 @@ function AccountMenu() {
     await queryClient.cancelQueries();
     queryClient.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+    navigate({ to: "/auth", replace: true, search: { next: "/" } });
   }
 
   if (!email) {
     return (
-      <Link to="/auth" className="text-sm text-primary underline">
+      <Link to="/auth" search={{ next: "/" }} className="text-sm text-primary underline">
         Sign in
       </Link>
     );

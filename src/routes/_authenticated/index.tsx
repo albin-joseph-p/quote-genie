@@ -724,9 +724,6 @@ function Workspace() {
         <h1 className="text-2xl font-semibold tracking-tight text-foreground" style={headingFont}>
           Quotation Workspace
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Upload customer quote images. AI extracts items and matches them against your inventory.
-        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
