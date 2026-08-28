@@ -42,6 +42,8 @@ type PresetRow = {
   name: string;
   sample_path: string;
   sample_mime: string;
+  sample_paths?: string[] | null;
+  sample_mimes?: string[] | null;
   excel_path: string;
   excel_name: string;
   excel_layout: string;
@@ -57,6 +59,8 @@ type Draft = {
   is_active: boolean;
   sample_path: string;
   sample_mime: string;
+  sample_paths: string[];
+  sample_mimes: string[];
   excel_path: string;
   excel_name: string;
   excel_layout: string;
@@ -69,6 +73,8 @@ const emptyDraft = (): Draft => ({
   is_active: true,
   sample_path: "",
   sample_mime: "",
+  sample_paths: [],
+  sample_mimes: [],
   excel_path: "",
   excel_name: "",
   excel_layout: "",
@@ -101,8 +107,8 @@ function QuotePresetsPage() {
   const imageRef = useRef<HTMLInputElement>(null);
   const excelRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
-  const [sampleFile, setSampleFile] = useState<File | null>(null);
-  const [samplePreview, setSamplePreview] = useState<string>("");
+  const [sampleFiles, setSampleFiles] = useState<Record<string, File>>({});
+  const [samplePreviews, setSamplePreviews] = useState<Record<string, string>>({});
   const [signed, setSigned] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState<"image" | "excel" | null>(null);
   const [saving, setSaving] = useState(false);
@@ -135,29 +141,58 @@ function QuotePresetsPage() {
     if (Object.keys(next).length) setSigned((s) => ({ ...s, ...next }));
   };
 
-  const onPickImage = async (file: File | undefined) => {
-    if (!file) return;
+  const onPickImages = async (files: FileList | null) => {
+    if (!files?.length) return;
     setUploading("image");
     try {
-      const path = `quote-presets/input/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-      const mime = file.type || "image/jpeg";
-      const up = await supabase.storage.from("quotation-images").upload(path, file, {
-        contentType: mime,
-        upsert: false,
-      });
-      if (up.error) throw up.error;
-      setSampleFile(file);
-      setSamplePreview(mime.startsWith("image/") ? URL.createObjectURL(file) : "");
-      setDraft((d) => ({ ...d, sample_path: up.data.path, sample_mime: mime }));
-      await signFor([up.data.path]);
+      const stamp = Date.now();
+      for (const [i, file] of Array.from(files).entries()) {
+        const path = `quote-presets/input/${stamp}-${i}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+        const mime = file.type || "image/jpeg";
+        const up = await supabase.storage.from("quotation-images").upload(path, file, {
+          contentType: mime,
+          upsert: false,
+        });
+        if (up.error) throw up.error;
+        setSampleFiles((s) => ({ ...s, [up.data.path]: file }));
+        if (mime.startsWith("image/")) {
+          setSamplePreviews((s) => ({ ...s, [up.data.path]: URL.createObjectURL(file) }));
+        }
+        setDraft((d) => ({
+          ...d,
+          sample_paths: [...d.sample_paths, up.data.path],
+          sample_mimes: [...d.sample_mimes, mime],
+          sample_path: d.sample_path || up.data.path,
+          sample_mime: d.sample_mime || mime,
+        }));
+        await signFor([up.data.path]);
+      }
       setRows([]);
-      toast.success("Sample input uploaded");
+      toast.success(files.length > 1 ? `${files.length} sample images uploaded` : "Sample input uploaded");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(null);
       if (imageRef.current) imageRef.current.value = "";
     }
+  };
+
+  const removeSampleAt = (idx: number) => {
+    let removed = "";
+    setDraft((d) => {
+      removed = d.sample_paths[idx] ?? "";
+      const paths = d.sample_paths.filter((_, i) => i !== idx);
+      const mimes = d.sample_mimes.filter((_, i) => i !== idx);
+      return { ...d, sample_paths: paths, sample_mimes: mimes, sample_path: paths[0] ?? "", sample_mime: mimes[0] ?? "" };
+    });
+    if (removed) {
+      setSampleFiles((s) => {
+        const next = { ...s };
+        delete next[removed];
+        return next;
+      });
+    }
+    setRows([]);
   };
 
   const onPickExcel = async (file: File | undefined) => {
@@ -183,21 +218,38 @@ function QuotePresetsPage() {
   };
 
   const analyze = async () => {
-    if (!sampleFile) return toast.error("Upload a sample input image first.");
+    const paths = draft.sample_paths.length ? draft.sample_paths : draft.sample_path ? [draft.sample_path] : [];
+    if (!paths.length) return toast.error("Upload at least one sample input image first.");
     setAnalyzing(true);
     try {
-      const base64 = await fileToBase64(sampleFile);
-      const res = await compare({
-        data: {
-          imageBase64: base64,
-          mimeType: sampleFile.type || "image/jpeg",
-          excelLayout: draft.excel_layout,
-        },
-      });
-      if (res.error) return toast.error(res.error);
-      setRows(res.rows);
-      if (!res.rows.length) toast.error("No line items could be read from the sample.");
-      else toast.success(`${res.rows.length} line(s) compared against inventory`);
+      const mimes = draft.sample_paths.length
+        ? draft.sample_mimes
+        : [draft.sample_mime || "image/jpeg"];
+      const merged: ComparisonRow[] = [];
+      let firstError: string | null = null;
+      for (const [i, path] of paths.entries()) {
+        let base64: string;
+        const mime = mimes[i] || "image/jpeg";
+        const local = sampleFiles[path];
+        if (local) {
+          base64 = await fileToBase64(local);
+        } else {
+          const { data: dl, error: dlErr } = await supabase.storage.from("quotation-images").download(path);
+          if (dlErr) throw dlErr;
+          base64 = await fileToBase64(new File([dl], path.split("/").pop() ?? "sample", { type: mime }));
+        }
+        const res = await compare({
+          data: { imageBase64: base64, mimeType: mime, excelLayout: draft.excel_layout },
+        });
+        if (res.error) {
+          firstError = res.error;
+          continue;
+        }
+        merged.push(...res.rows);
+      }
+      setRows(merged);
+      if (!merged.length) toast.error(firstError ?? "No line items could be read from the samples.");
+      else toast.success(`${merged.length} line(s) compared from ${paths.length} image(s)`);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Comparison failed");
     } finally {
@@ -207,8 +259,11 @@ function QuotePresetsPage() {
 
   const save = async () => {
     if (!draft.name.trim()) return toast.error("Give the preset a name.");
-    if (!draft.sample_path) return toast.error("Upload a sample input image.");
+    if (!draft.sample_paths.length && !draft.sample_path)
+      return toast.error("Upload at least one sample input image.");
     if (!draft.excel_path) return toast.error("Upload a sample Excel output sheet.");
+    const paths = draft.sample_paths.length ? draft.sample_paths : [draft.sample_path];
+    const mimes = draft.sample_paths.length ? draft.sample_mimes : [draft.sample_mime];
     setSaving(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -216,8 +271,10 @@ function QuotePresetsPage() {
         name: draft.name.trim(),
         notes: draft.notes,
         is_active: draft.is_active,
-        sample_path: draft.sample_path,
-        sample_mime: draft.sample_mime,
+        sample_path: paths[0],
+        sample_mime: mimes[0] ?? "image/jpeg",
+        sample_paths: paths,
+        sample_mimes: mimes,
         excel_path: draft.excel_path,
         excel_name: draft.excel_name,
         excel_layout: draft.excel_layout,
@@ -229,8 +286,8 @@ function QuotePresetsPage() {
       if (res.error) throw res.error;
       toast.success(draft.id ? "Preset updated" : "Preset saved");
       setDraft(emptyDraft());
-      setSampleFile(null);
-      setSamplePreview("");
+      setSampleFiles({});
+      setSamplePreviews({});
       setRows([]);
       refetch();
     } catch (e: unknown) {
@@ -241,21 +298,25 @@ function QuotePresetsPage() {
   };
 
   const edit = async (p: PresetRow) => {
+    const paths = p.sample_paths?.length ? p.sample_paths : p.sample_path ? [p.sample_path] : [];
+    const mimes = p.sample_mimes?.length ? p.sample_mimes : p.sample_mime ? [p.sample_mime] : [];
     setDraft({
       id: p.id,
       name: p.name,
       notes: p.notes,
       is_active: p.is_active,
-      sample_path: p.sample_path,
-      sample_mime: p.sample_mime,
+      sample_path: paths[0] ?? "",
+      sample_mime: mimes[0] ?? "",
+      sample_paths: paths,
+      sample_mimes: mimes,
       excel_path: p.excel_path,
       excel_name: p.excel_name,
       excel_layout: p.excel_layout,
     });
-    setSampleFile(null);
-    setSamplePreview("");
+    setSampleFiles({});
+    setSamplePreviews({});
     setRows([]);
-    await signFor([p.sample_path, p.excel_path]);
+    await signFor([...paths, p.excel_path]);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -296,7 +357,13 @@ function QuotePresetsPage() {
     XLSX.writeFile(wb, "comparison-list.xlsx");
   };
 
-  const previewSrc = samplePreview || signed[draft.sample_path] || "";
+  const sampleList: { path: string; mime: string; src: string }[] = (
+    draft.sample_paths.length ? draft.sample_paths : draft.sample_path ? [draft.sample_path] : []
+  ).map((p, i) => ({
+    path: p,
+    mime: draft.sample_paths.length ? draft.sample_mimes[i] ?? "image/jpeg" : draft.sample_mime || "image/jpeg",
+    src: samplePreviews[p] || signed[p] || "",
+  }));
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8 space-y-6">
@@ -329,35 +396,54 @@ function QuotePresetsPage() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Sample input image */}
+          {/* Sample input images */}
           <section className="space-y-2">
             <h2 className="text-sm font-semibold flex items-center gap-2">
-              <ImageIcon className="h-4 w-4" /> Sample input image
+              <ImageIcon className="h-4 w-4" /> Sample input images
             </h2>
             <input
               ref={imageRef}
               type="file"
+              multiple
               accept="image/*,application/pdf"
               className="hidden"
-              onChange={(e) => onPickImage(e.target.files?.[0])}
+              onChange={(e) => onPickImages(e.target.files)}
             />
-            {previewSrc ? (
-              <div className="relative w-full overflow-hidden rounded-md border bg-muted">
-                <img src={previewSrc} alt="Sample quotation input" className="max-h-64 w-full object-contain" />
+            {sampleList.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {sampleList.map((s, idx) => (
+                  <div key={s.path} className="relative overflow-hidden rounded-md border bg-muted">
+                    {s.src && s.mime.startsWith("image/") ? (
+                      <img src={s.src} alt={`Sample input ${idx + 1}`} className="h-24 w-full object-cover" />
+                    ) : (
+                      <div className="flex h-24 w-full flex-col items-center justify-center gap-1 text-[10px] text-muted-foreground">
+                        <ImageIcon className="h-4 w-4" />
+                        <span className="max-w-full truncate px-1">{s.path.split("/").pop()}</span>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => removeSampleAt(idx)}
+                      className="absolute right-1 top-1 rounded bg-background/90 p-0.5"
+                      aria-label={`Remove sample image ${idx + 1}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
                 <button
-                  onClick={() => {
-                    setDraft((d) => ({ ...d, sample_path: "", sample_mime: "" }));
-                    setSampleFile(null);
-                    setSamplePreview("");
-                    setRows([]);
-                  }}
-                  className="absolute right-2 top-2 rounded bg-background/90 p-1"
-                  aria-label="Remove sample image"
+                  onClick={() => imageRef.current?.click()}
+                  className="flex h-24 w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed text-xs text-muted-foreground hover:bg-accent"
                 >
-                  <X className="h-3 w-3" />
+                  {uploading === "image" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  Add more
                 </button>
               </div>
-            ) : (
+            )}
+            {sampleList.length === 0 && (
               <button
                 onClick={() => imageRef.current?.click()}
                 className="flex h-40 w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed text-sm text-muted-foreground hover:bg-accent"
@@ -367,11 +453,8 @@ function QuotePresetsPage() {
                 ) : (
                   <Upload className="h-5 w-5" />
                 )}
-                Upload sample quotation image
+                Upload sample quotation images (you can pick several)
               </button>
-            )}
-            {draft.sample_path && !previewSrc && (
-              <p className="text-xs text-muted-foreground truncate">{draft.sample_path}</p>
             )}
           </section>
 
@@ -417,7 +500,7 @@ function QuotePresetsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={analyze} disabled={analyzing || !sampleFile}>
+          <Button onClick={analyze} disabled={analyzing || !sampleList.length}>
             {analyzing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Sparkles className="h-4 w-4 mr-1" />}
             Generate comparison list
           </Button>
@@ -429,11 +512,6 @@ function QuotePresetsPage() {
             <Button variant="ghost" onClick={() => setDraft(emptyDraft())}>
               Cancel edit
             </Button>
-          )}
-          {!sampleFile && draft.sample_path && (
-            <span className="text-xs text-muted-foreground">
-              Re-upload the sample image to run a new comparison.
-            </span>
           )}
         </div>
       </Card>
