@@ -256,7 +256,9 @@ export type Database = {
           name: string
           notes: string
           sample_mime: string
+          sample_mimes: string[]
           sample_path: string
+          sample_paths: string[]
           updated_at: string
         }
         Insert: {
@@ -270,7 +272,9 @@ export type Database = {
           name?: string
           notes?: string
           sample_mime?: string
+          sample_mimes?: string[]
           sample_path?: string
+          sample_paths?: string[]
           updated_at?: string
         }
         Update: {
@@ -284,7 +288,9 @@ export type Database = {
           name?: string
           notes?: string
           sample_mime?: string
+          sample_mimes?: string[]
           sample_path?: string
+          sample_paths?: string[]
           updated_at?: string
         }
         Relationships: []
