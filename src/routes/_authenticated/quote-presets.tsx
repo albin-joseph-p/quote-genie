@@ -500,7 +500,7 @@ function QuotePresetsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={analyze} disabled={analyzing || !sampleFile}>
+          <Button onClick={analyze} disabled={analyzing || !sampleList.length}>
             {analyzing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Sparkles className="h-4 w-4 mr-1" />}
             Generate comparison list
           </Button>
@@ -512,11 +512,6 @@ function QuotePresetsPage() {
             <Button variant="ghost" onClick={() => setDraft(emptyDraft())}>
               Cancel edit
             </Button>
-          )}
-          {!sampleFile && draft.sample_path && (
-            <span className="text-xs text-muted-foreground">
-              Re-upload the sample image to run a new comparison.
-            </span>
           )}
         </div>
       </Card>
